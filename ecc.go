@@ -87,24 +87,25 @@ func (e FieldElement) repr() {
 }
 
 type Point struct {
-	x int
-	y int
-	a int
-	b int
+	x FieldElement
+	y FieldElement
+	a FieldElement
+	b FieldElement
 }
 
-func newPoint(x, y, a, b int) *Point {
+func newPoint(x, y, a, b FieldElement) *Point {
 	p := &Point{x: x, y: y, a: a, b: b}
 
-	if x == math.MinInt && y == math.MinInt {
-		inf := int(math.Inf(x))
-		return &Point{x: inf, y: inf, a: a, b: b}
+	if x.num == math.MinInt && y.num == math.MinInt {
+		inf := int(math.Inf(x.num))
+		infelement := newFieldElement(inf, x.prime)
+		return &Point{x: *infelement, y: *infelement, a: a, b: b}
 	}
 
-	squarey := int(math.Pow(float64(y), float64(2)))
-	cubex := int(math.Pow(float64(x), float64(3)))
+	squarey := y.pow(2)
+	cubex := x.pow(3)
 
-	if squarey != cubex+(a*x)+b {
+	if *squarey != *cubex.add(*a.mul(x)).add(b) {
 		fmt.Printf("(%d, %d) is not in the curve\n", x, y)
 		return nil
 	}
@@ -126,39 +127,61 @@ func (p Point) add(point Point) *Point {
 		return nil
 	}
 
-	if p.x == math.MinInt {
+	if p.x.num == math.MinInt {
 		return &point
 	}
 
-	if point.x == math.MinInt {
+	if point.x.num == math.MinInt {
 		return &p
 	}
 
 	if p.x == point.x && p.y != point.y {
-		inf := int(math.Inf(p.x))
-		return &Point{x: inf, y: inf, a: p.a, b: p.b}
+		inf := int(math.Inf(p.x.num))
+		infelement := newFieldElement(inf, p.a.prime)
+		return &Point{x: *infelement, y: *infelement, a: p.a, b: p.b}
 	}
 
-	if p.eq(point) && p.y == 0 {
-		inf := int(math.Inf(p.x))
-		return &Point{x: inf, y: inf, a: p.a, b: p.b}
+	if p.eq(point) && p.y.num == 0 {
+		inf := int(math.Inf(p.x.num))
+		infelement := newFieldElement(inf, p.a.prime)
+		return &Point{x: *infelement, y: *infelement, a: p.a, b: p.b}
 	}
 
 	if p.x != point.x {
-		slope := (point.y - p.y) / (point.x - p.x)
-		x := int(math.Pow(float64(slope), 2)) - p.x - point.x
-		y := slope*(p.x-x) - p.y
+		//slope := (point.y.num - p.y.num) / (point.x.num - p.x.num)
+		// x := int(math.Pow(float64(slope), 2)) - p.x.num - point.x.num
+		// y := slope*(p.x.num-x) - p.y.num
 
-		return &Point{x: x, y: y, a: p.a, b: p.b}
+		slope := point.y.sub(p.y).div(*point.x.sub(p.x))
+		x := slope.pow(2).sub(p.x).sub(point.x)
+		y := slope.mul(*p.x.sub(*x)).sub(p.y)
+
+		// xelement := newFieldElement(x, p.x.prime)
+		// yelement := newFieldElement(y, p.y.prime)
+
+		return &Point{x: *x, y: *y, a: p.a, b: p.b}
 	}
 
 	if p == point {
-		slope := (3*int(math.Pow(float64(p.x), 2)) + p.a) / (2 * p.y)
-		x := int(math.Pow(float64(slope), 2)) - (2 * p.x)
-		y := slope*(p.x-x) - p.y
+		// slope := (3*int(math.Pow(float64(p.x.num), 2)) + p.a.num) / (2 * p.y.num)
+		// x := int(math.Pow(float64(slope), 2)) - (2 * p.x.num)
+		// y := slope*(p.x.num-x) - p.y.num
+		// xelement := newFieldElement(x, p.x.prime)
+		// yelement := newFieldElement(y, p.y.prime)
 
-		return &Point{x: x, y: y, a: p.a, b: p.b}
+		three := newFieldElement(3, p.x.prime)
+		two := newFieldElement(2, p.x.prime)
+
+		slope := p.x.pow(2).mul(*three).add(p.a).div(*two.mul(p.y))
+		x := slope.pow(2).sub(p.x).sub(point.x)
+		y := slope.mul(*p.x.sub(*x)).sub(p.y)
+
+		return &Point{x: *x, y: *y, a: p.a, b: p.b}
 	}
 
 	return nil
+}
+
+func (p Point) repr() {
+	fmt.Printf("Point(%d, %d)_%d_%d FieldElement(%d)\n", p.x.num, p.y.num, p.a.num, p.b.num, p.x.prime)
 }

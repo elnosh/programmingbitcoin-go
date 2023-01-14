@@ -1,7 +1,6 @@
 package main
 
 import (
-	"math"
 	"testing"
 )
 
@@ -163,19 +162,23 @@ func TestDivFieldElement(t *testing.T) {
 }
 
 func TestNePoint(t *testing.T) {
-	a := newPoint(3, -7, 5, 7)
-	b := newPoint(18, 77, 5, 7)
+	prime := 98
+	a := newFieldElement(5, prime)
+	b := newFieldElement(7, prime)
 
-	c := newPoint(2, 5, 5, 7)
-	d := newPoint(2, 5, 5, 7)
+	ap := newPoint(*newFieldElement(3, prime), *newFieldElement(7, prime), *a, *b)
+	bp := newPoint(*newFieldElement(18, prime), *newFieldElement(77, prime), *a, *b)
+
+	cp := newPoint(*newFieldElement(2, prime), *newFieldElement(5, prime), *a, *b)
+	dp := newPoint(*newFieldElement(2, prime), *newFieldElement(5, prime), *a, *b)
 
 	cases := []struct {
 		e1   Point
 		e2   Point
 		want bool
 	}{
-		{*a, *b, true},
-		{*c, *d, false},
+		{*ap, *bp, true},
+		{*cp, *dp, false},
 	}
 
 	for _, test := range cases {
@@ -186,31 +189,102 @@ func TestNePoint(t *testing.T) {
 	}
 }
 
-func TestAddPoint(t *testing.T) {
-	inf := int(math.Inf(0))
-	a := newPoint(inf, inf, 5, 7)
-	b := newPoint(2, 5, 5, 7)
-	c := newPoint(2, -5, 5, 7)
-	d := newPoint(3, 7, 5, 7)
-	e := newPoint(-1, -1, 5, 7)
+func TestAddPointFiniteField(t *testing.T) {
+	prime := 223
+	a := newFieldElement(0, prime)
+	b := newFieldElement(7, prime)
 
-	cases := []struct {
-		e1   Point
-		e2   Point
-		want Point
-	}{
-		{*a, *b, *b},
-		{*b, *a, *b},
-		{*a, *c, *c},
-		{*b, *c, *a},
-		{*d, *e, Point{x: 2, y: -5, a: 5, b: 7}},
-		{*e, *e, Point{x: 18, y: 77, a: 5, b: 7}},
+	cases := [][6]int{
+		{192, 105, 17, 56, 170, 142},
+		{170, 142, 60, 139, 220, 181},
+		{47, 71, 17, 56, 215, 68},
+		{143, 98, 76, 66, 47, 71},
 	}
 
 	for _, test := range cases {
-		result := test.e1.add(test.e2)
-		if *result != test.want {
-			t.Errorf("expected '%v' but got '%v' instead\n", test.want, *result)
+		x1 := newFieldElement(test[0], prime)
+		y1 := newFieldElement(test[1], prime)
+		p1 := newPoint(*x1, *y1, *a, *b)
+
+		x2 := newFieldElement(test[2], prime)
+		y2 := newFieldElement(test[3], prime)
+		p2 := newPoint(*x2, *y2, *a, *b)
+
+		x3 := newFieldElement(test[4], prime)
+		y3 := newFieldElement(test[5], prime)
+		p3 := newPoint(*x3, *y3, *a, *b)
+
+		if *p1.add(*p2) != *p3 {
+			t.Errorf("expected '%v' but got '%v' instead\n", p3, *p1.add(*p2))
 		}
 	}
 }
+
+func TestOnCurve(t *testing.T) {
+	prime := 223
+	a := newFieldElement(0, prime)
+	b := newFieldElement(7, prime)
+
+	validPoints := [][2]int{
+		{192, 105},
+		{17, 56},
+		{1, 193},
+	}
+
+	invalidPoints := [][2]int{
+		{200, 119},
+		{42, 99},
+	}
+
+	for _, point := range validPoints {
+		x := newFieldElement(point[0], prime)
+		y := newFieldElement(point[1], prime)
+		npoint := newPoint(*x, *y, *a, *b)
+		if npoint == nil {
+			t.Errorf("point %v should not be nil\n", point)
+		}
+	}
+
+	for _, point := range invalidPoints {
+		x := newFieldElement(point[0], prime)
+		y := newFieldElement(point[1], prime)
+		npoint := newPoint(*x, *y, *a, *b)
+		if npoint != nil {
+			t.Errorf("point should be nil for invalid point %v\n", point)
+		}
+	}
+
+}
+
+//func TestAddPoint(t *testing.T) {
+//	prime := 98
+//	a := newFieldElement(5, prime)
+//	b := newFieldElement(7, prime)
+
+//	// infelement := newFieldElement(int(math.Inf(0)), prime)
+//	// ap := newPoint(*infelement, *infelement, *a, *b)
+//	// bp := newPoint(*newFieldElement(2, prime), *newFieldElement(5, prime), *a, *b)
+//	// cp := newPoint(*newFieldElement(2, prime), *newFieldElement(-5, prime), *a, *b)
+//	dp := newPoint(*newFieldElement(3, prime), *newFieldElement(7, prime), *a, *b)
+//	ep := newPoint(*newFieldElement(-1, prime), *newFieldElement(-1, prime), *a, *b)
+
+//	cases := []struct {
+//		e1   Point
+//		e2   Point
+//		want Point
+//	}{
+//		//{*ap, *bp, *bp},
+//		//{*bp, *ap, *bp},
+//		//{*ap, *cp, *cp},
+//		//{*bp, *cp, *ap},
+//		{*dp, *ep, Point{x: *newFieldElement(2, prime), y: *newFieldElement(-5, prime), a: *a, b: *b}},
+//		{*ep, *ep, Point{x: *newFieldElement(18, prime), y: *newFieldElement(77, prime), a: *a, b: *b}},
+//	}
+
+//	for _, test := range cases {
+//		result := test.e1.add(test.e2)
+//		if *result != test.want {
+//			t.Errorf("expected '%v' but got '%v' instead\n", test.want, *result)
+//		}
+//	}
+//}
