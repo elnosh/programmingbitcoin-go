@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 )
 
@@ -83,4 +84,81 @@ func (e FieldElement) div(divisor FieldElement) *FieldElement {
 
 func (e FieldElement) repr() {
 	fmt.Printf("FieldElement_%d (%d)\n", e.prime, e.num)
+}
+
+type Point struct {
+	x int
+	y int
+	a int
+	b int
+}
+
+func newPoint(x, y, a, b int) *Point {
+	p := &Point{x: x, y: y, a: a, b: b}
+
+	if x == math.MinInt && y == math.MinInt {
+		inf := int(math.Inf(x))
+		return &Point{x: inf, y: inf, a: a, b: b}
+	}
+
+	squarey := int(math.Pow(float64(y), float64(2)))
+	cubex := int(math.Pow(float64(x), float64(3)))
+
+	if squarey != cubex+(a*x)+b {
+		fmt.Printf("(%d, %d) is not in the curve\n", x, y)
+		return nil
+	}
+
+	return p
+}
+
+func (p Point) eq(point Point) bool {
+	return p == point
+}
+
+func (p Point) ne(point Point) bool {
+	return p != point
+}
+
+func (p Point) add(point Point) *Point {
+	if p.a != point.a || p.b != point.b {
+		fmt.Printf("Points %v, %v are not on the same curve\n", p, point)
+		return nil
+	}
+
+	if p.x == math.MinInt {
+		return &point
+	}
+
+	if point.x == math.MinInt {
+		return &p
+	}
+
+	if p.x == point.x && p.y != point.y {
+		inf := int(math.Inf(p.x))
+		return &Point{x: inf, y: inf, a: p.a, b: p.b}
+	}
+
+	if p.eq(point) && p.y == 0 {
+		inf := int(math.Inf(p.x))
+		return &Point{x: inf, y: inf, a: p.a, b: p.b}
+	}
+
+	if p.x != point.x {
+		slope := (point.y - p.y) / (point.x - p.x)
+		x := int(math.Pow(float64(slope), 2)) - p.x - point.x
+		y := slope*(p.x-x) - p.y
+
+		return &Point{x: x, y: y, a: p.a, b: p.b}
+	}
+
+	if p == point {
+		slope := (3*int(math.Pow(float64(p.x), 2)) + p.a) / (2 * p.y)
+		x := int(math.Pow(float64(slope), 2)) - (2 * p.x)
+		y := slope*(p.x-x) - p.y
+
+		return &Point{x: x, y: y, a: p.a, b: p.b}
+	}
+
+	return nil
 }

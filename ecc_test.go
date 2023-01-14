@@ -1,10 +1,11 @@
 package main
 
 import (
+	"math"
 	"testing"
 )
 
-func TestNe(t *testing.T) {
+func TestNeFieldElement(t *testing.T) {
 	a := newFieldElement(2, 31)
 	b := newFieldElement(2, 31)
 	c := newFieldElement(15, 31)
@@ -26,7 +27,7 @@ func TestNe(t *testing.T) {
 	}
 }
 
-func TestAdd(t *testing.T) {
+func TestAddFieldElement(t *testing.T) {
 	a := newFieldElement(2, 31)
 	b := newFieldElement(15, 31)
 
@@ -58,7 +59,7 @@ func TestAdd(t *testing.T) {
 	}
 }
 
-func TestSub(t *testing.T) {
+func TestSubFieldElement(t *testing.T) {
 	a := newFieldElement(29, 31)
 	b := newFieldElement(4, 31)
 
@@ -86,7 +87,7 @@ func TestSub(t *testing.T) {
 	}
 }
 
-func TestMul(t *testing.T) {
+func TestMulFieldElement(t *testing.T) {
 	a := newFieldElement(24, 31)
 	b := newFieldElement(19, 31)
 
@@ -119,7 +120,7 @@ func TestMul(t *testing.T) {
 	}
 }
 
-func TestPow(t *testing.T) {
+func TestPowFieldElement(t *testing.T) {
 	a := newFieldElement(17, 31)
 	b := newFieldElement(5, 31)
 
@@ -141,7 +142,7 @@ func TestPow(t *testing.T) {
 	}
 }
 
-func TestDiv(t *testing.T) {
+func TestDivFieldElement(t *testing.T) {
 	a := newFieldElement(3, 31)
 	b := newFieldElement(24, 31)
 
@@ -155,6 +156,59 @@ func TestDiv(t *testing.T) {
 
 	for _, test := range cases {
 		result := test.e1.div(test.e2)
+		if *result != test.want {
+			t.Errorf("expected '%v' but got '%v' instead\n", test.want, *result)
+		}
+	}
+}
+
+func TestNePoint(t *testing.T) {
+	a := newPoint(3, -7, 5, 7)
+	b := newPoint(18, 77, 5, 7)
+
+	c := newPoint(2, 5, 5, 7)
+	d := newPoint(2, 5, 5, 7)
+
+	cases := []struct {
+		e1   Point
+		e2   Point
+		want bool
+	}{
+		{*a, *b, true},
+		{*c, *d, false},
+	}
+
+	for _, test := range cases {
+		ne := test.e1.ne(test.e2)
+		if ne != test.want {
+			t.Errorf("expected '%t' but got '%t' instead\n", test.want, ne)
+		}
+	}
+}
+
+func TestAddPoint(t *testing.T) {
+	inf := int(math.Inf(0))
+	a := newPoint(inf, inf, 5, 7)
+	b := newPoint(2, 5, 5, 7)
+	c := newPoint(2, -5, 5, 7)
+	d := newPoint(3, 7, 5, 7)
+	e := newPoint(-1, -1, 5, 7)
+
+	cases := []struct {
+		e1   Point
+		e2   Point
+		want Point
+	}{
+		{*a, *b, *b},
+		{*b, *a, *b},
+		{*a, *c, *c},
+		{*b, *c, *a},
+		{*d, *e, Point{x: 2, y: -5, a: 5, b: 7}},
+		{*e, *e, Point{x: 18, y: 77, a: 5, b: 7}},
+	}
+
+	for _, test := range cases {
+		result := test.e1.add(test.e2)
 		if *result != test.want {
 			t.Errorf("expected '%v' but got '%v' instead\n", test.want, *result)
 		}
