@@ -7,13 +7,17 @@ import (
 )
 
 type FieldElement struct {
-	num   int // single finite field element
-	prime int // field
+	num   float64 // single finite field element
+	prime float64 // field
 }
 
-func newFieldElement(num, prime int) *FieldElement {
+func newFieldElement(num, prime float64) *FieldElement {
+	if math.IsInf(num, 0) {
+		inf := math.Inf(int(num))
+		return &FieldElement{num: inf, prime: prime}
+	}
 	if num < 0 || num >= prime {
-		fmt.Printf("num %d not in field range 0 to %d\n", num, prime-1)
+		fmt.Printf("num %f not in field range 0 to %f\n", num, prime-1)
 		return nil
 	}
 	return &FieldElement{num: num, prime: prime}
@@ -33,7 +37,7 @@ func (e FieldElement) add(element FieldElement) *FieldElement {
 		return nil
 	}
 
-	num := mod((e.num + element.num), e.prime)
+	num := float64(mod((int(e.num + element.num)), int(e.prime)))
 	return &FieldElement{num: num, prime: e.prime}
 }
 
@@ -43,7 +47,7 @@ func (e FieldElement) sub(element FieldElement) *FieldElement {
 		return nil
 	}
 
-	num := mod((e.num - element.num), e.prime)
+	num := float64(mod((int(e.num - element.num)), int(e.prime)))
 	return &FieldElement{num: num, prime: e.prime}
 }
 
@@ -53,21 +57,14 @@ func (e FieldElement) mul(element FieldElement) *FieldElement {
 		return nil
 	}
 
-	num := mod((e.num * element.num), e.prime)
+	num := float64(mod((int(e.num * element.num)), int(e.prime)))
 	return &FieldElement{num: num, prime: e.prime}
 }
 
-// func (e FieldElement) pow(exponent int) *FieldElement {
-// 	powint := int(math.Pow(float64(e.num), float64(exponent)))
-
-// 	num := mod(powint, e.prime)
-// 	return &FieldElement{num: num, prime: e.prime}
-// }
-
-func (e FieldElement) pow(exponent int) *FieldElement {
+func (e FieldElement) pow(exponent float64) *FieldElement {
 	powres := new(big.Int).Exp(big.NewInt(int64(e.num)), big.NewInt(int64(exponent)), big.NewInt(int64(e.prime)))
 
-	num := mod(int(powres.Int64()), e.prime)
+	num := float64(mod(int(powres.Int64()), int(e.prime)))
 	return &FieldElement{num: num, prime: e.prime}
 }
 
@@ -78,12 +75,12 @@ func (e FieldElement) div(divisor FieldElement) *FieldElement {
 	}
 
 	divpow := divisor.pow(e.prime - 2)
-	num := mod((e.mul(*divpow).num), e.prime)
+	num := float64(mod((int(e.mul(*divpow).num)), int(e.prime)))
 	return &FieldElement{num: num, prime: e.prime}
 }
 
 func (e FieldElement) repr() {
-	fmt.Printf("FieldElement_%d (%d)\n", e.prime, e.num)
+	fmt.Printf("FieldElement_%f (%f)\n", e.prime, e.num)
 }
 
 type Point struct {
@@ -96,8 +93,8 @@ type Point struct {
 func newPoint(x, y, a, b FieldElement) *Point {
 	p := &Point{x: x, y: y, a: a, b: b}
 
-	if x.num == math.MinInt && y.num == math.MinInt {
-		inf := int(math.Inf(x.num))
+	if math.IsInf(x.num, 0) && math.IsInf(y.num, 0) {
+		inf := math.Inf(int(x.num))
 		infelement := newFieldElement(inf, x.prime)
 		return &Point{x: *infelement, y: *infelement, a: a, b: b}
 	}
@@ -106,7 +103,7 @@ func newPoint(x, y, a, b FieldElement) *Point {
 	cubex := x.pow(3)
 
 	if *squarey != *cubex.add(*a.mul(x)).add(b) {
-		fmt.Printf("(%d, %d) is not in the curve\n", x, y)
+		fmt.Printf("(%f, %f) is not in the curve\n", x, y)
 		return nil
 	}
 
@@ -127,53 +124,50 @@ func (p Point) add(point Point) *Point {
 		return nil
 	}
 
-	if p.x.num == math.MinInt {
+	if math.IsInf(p.x.num, 0) {
 		return &point
 	}
 
-	if point.x.num == math.MinInt {
+	if math.IsInf(point.x.num, 0) {
 		return &p
 	}
 
 	if p.x == point.x && p.y != point.y {
-		inf := int(math.Inf(p.x.num))
+		inf := math.Inf(int(p.x.num))
 		infelement := newFieldElement(inf, p.a.prime)
 		return &Point{x: *infelement, y: *infelement, a: p.a, b: p.b}
 	}
 
 	if p.eq(point) && p.y.num == 0 {
-		inf := int(math.Inf(p.x.num))
+		inf := math.Inf(int(p.x.num))
 		infelement := newFieldElement(inf, p.a.prime)
 		return &Point{x: *infelement, y: *infelement, a: p.a, b: p.b}
 	}
 
 	if p.x != point.x {
-		//slope := (point.y.num - p.y.num) / (point.x.num - p.x.num)
-		// x := int(math.Pow(float64(slope), 2)) - p.x.num - point.x.num
-		// y := slope*(p.x.num-x) - p.y.num
-
+		// (y2 - y1) / (x2 - x1)
 		slope := point.y.sub(p.y).div(*point.x.sub(p.x))
-		x := slope.pow(2).sub(p.x).sub(point.x)
-		y := slope.mul(*p.x.sub(*x)).sub(p.y)
 
-		// xelement := newFieldElement(x, p.x.prime)
-		// yelement := newFieldElement(y, p.y.prime)
+		// x3 = slope^2 - x1 - x2
+		x := slope.pow(2).sub(p.x).sub(point.x)
+
+		// y3 = slope(x1 - x3) - y1
+		y := slope.mul(*p.x.sub(*x)).sub(p.y)
 
 		return &Point{x: *x, y: *y, a: p.a, b: p.b}
 	}
 
-	if p == point {
-		// slope := (3*int(math.Pow(float64(p.x.num), 2)) + p.a.num) / (2 * p.y.num)
-		// x := int(math.Pow(float64(slope), 2)) - (2 * p.x.num)
-		// y := slope*(p.x.num-x) - p.y.num
-		// xelement := newFieldElement(x, p.x.prime)
-		// yelement := newFieldElement(y, p.y.prime)
+	if p.eq(point) {
+		cube := newFieldElement(3, p.x.prime)
+		t := newFieldElement(2, p.x.prime)
 
-		three := newFieldElement(3, p.x.prime)
-		two := newFieldElement(2, p.x.prime)
+		// (3x1^2 + a) / (2y1)
+		slope := p.x.pow(2).mul(*cube).add(p.a).div(*t.mul(p.y))
 
-		slope := p.x.pow(2).mul(*three).add(p.a).div(*two.mul(p.y))
+		// slope^2 - 2x1
 		x := slope.pow(2).sub(p.x).sub(point.x)
+
+		// slope(x1 - x3) - y1
 		y := slope.mul(*p.x.sub(*x)).sub(p.y)
 
 		return &Point{x: *x, y: *y, a: p.a, b: p.b}
@@ -183,5 +177,5 @@ func (p Point) add(point Point) *Point {
 }
 
 func (p Point) repr() {
-	fmt.Printf("Point(%d, %d)_%d_%d FieldElement(%d)\n", p.x.num, p.y.num, p.a.num, p.b.num, p.x.prime)
+	fmt.Printf("Point(%f, %f)_%f_%f FieldElement(%f)\n", p.x.num, p.y.num, p.a.num, p.b.num, p.x.prime)
 }

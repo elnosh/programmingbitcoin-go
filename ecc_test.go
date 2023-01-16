@@ -125,7 +125,7 @@ func TestPowFieldElement(t *testing.T) {
 
 	cases := []struct {
 		e1   FieldElement
-		exp  int
+		exp  float64
 		want FieldElement
 	}{
 		{*a, 3, FieldElement{num: 15, prime: 31}},
@@ -162,7 +162,7 @@ func TestDivFieldElement(t *testing.T) {
 }
 
 func TestNePoint(t *testing.T) {
-	prime := 98
+	var prime float64 = 98
 	a := newFieldElement(5, prime)
 	b := newFieldElement(7, prime)
 
@@ -190,11 +190,11 @@ func TestNePoint(t *testing.T) {
 }
 
 func TestAddPointFiniteField(t *testing.T) {
-	prime := 223
+	var prime float64 = 223
 	a := newFieldElement(0, prime)
 	b := newFieldElement(7, prime)
 
-	cases := [][6]int{
+	cases := [][6]float64{
 		{192, 105, 17, 56, 170, 142},
 		{170, 142, 60, 139, 220, 181},
 		{47, 71, 17, 56, 215, 68},
@@ -221,17 +221,17 @@ func TestAddPointFiniteField(t *testing.T) {
 }
 
 func TestOnCurve(t *testing.T) {
-	prime := 223
+	var prime float64 = 223
 	a := newFieldElement(0, prime)
 	b := newFieldElement(7, prime)
 
-	validPoints := [][2]int{
+	validPoints := [][2]float64{
 		{192, 105},
 		{17, 56},
 		{1, 193},
 	}
 
-	invalidPoints := [][2]int{
+	invalidPoints := [][2]float64{
 		{200, 119},
 		{42, 99},
 	}
@@ -255,36 +255,3 @@ func TestOnCurve(t *testing.T) {
 	}
 
 }
-
-//func TestAddPoint(t *testing.T) {
-//	prime := 98
-//	a := newFieldElement(5, prime)
-//	b := newFieldElement(7, prime)
-
-//	// infelement := newFieldElement(int(math.Inf(0)), prime)
-//	// ap := newPoint(*infelement, *infelement, *a, *b)
-//	// bp := newPoint(*newFieldElement(2, prime), *newFieldElement(5, prime), *a, *b)
-//	// cp := newPoint(*newFieldElement(2, prime), *newFieldElement(-5, prime), *a, *b)
-//	dp := newPoint(*newFieldElement(3, prime), *newFieldElement(7, prime), *a, *b)
-//	ep := newPoint(*newFieldElement(-1, prime), *newFieldElement(-1, prime), *a, *b)
-
-//	cases := []struct {
-//		e1   Point
-//		e2   Point
-//		want Point
-//	}{
-//		//{*ap, *bp, *bp},
-//		//{*bp, *ap, *bp},
-//		//{*ap, *cp, *cp},
-//		//{*bp, *cp, *ap},
-//		{*dp, *ep, Point{x: *newFieldElement(2, prime), y: *newFieldElement(-5, prime), a: *a, b: *b}},
-//		{*ep, *ep, Point{x: *newFieldElement(18, prime), y: *newFieldElement(77, prime), a: *a, b: *b}},
-//	}
-
-//	for _, test := range cases {
-//		result := test.e1.add(test.e2)
-//		if *result != test.want {
-//			t.Errorf("expected '%v' but got '%v' instead\n", test.want, *result)
-//		}
-//	}
-//}
