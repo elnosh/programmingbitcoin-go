@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/bits"
 )
 
 type FieldElement struct {
@@ -174,6 +175,25 @@ func (p Point) add(point Point) *Point {
 	}
 
 	return nil
+}
+
+func (p Point) rmul(num int) *Point {
+	current := &p
+
+	coef := num
+	inf := math.Inf(int(0))
+	infelement := newFieldElement(inf, p.a.prime)
+	result := newPoint(*infelement, *infelement, p.a, p.b)
+
+	for i := 0; i < bits.Len(uint(num)); i++ {
+		if (coef & 1) != 0 {
+			result = result.add(*current)
+		}
+		current = current.add(*current)
+		coef = coef >> 1
+	}
+
+	return result
 }
 
 func (p Point) repr() {
