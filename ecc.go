@@ -185,7 +185,7 @@ func (p Point) add(point Point) *Point {
 		return &Point{x: *infelement, y: *infelement, a: p.a, b: p.b}
 	}
 
-	if p.x != point.x {
+	if p.x.ne(point.x) {
 		// (y2 - y1) / (x2 - x1)
 		slope := point.y.sub(p.y).div(*point.x.sub(p.x))
 
@@ -198,7 +198,7 @@ func (p Point) add(point Point) *Point {
 		return &Point{x: *x, y: *y, a: p.a, b: p.b}
 	}
 
-	if p == point {
+	if p.eq(point) {
 		three := newFieldElement(big.NewInt(3), p.x.prime)
 		two := newFieldElement(big.NewInt(2), p.x.prime)
 
