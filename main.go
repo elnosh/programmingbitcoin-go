@@ -1,52 +1,42 @@
 package main
 
+import (
+	"strings"
+)
+
 func main() {
-	prime := 223
-	a := newFieldElement(0, prime)
-	b := newFieldElement(7, prime)
+	//var prime float64 = 223
+	// twopow256 := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(10)).Int64()
+	// twopow32 := new(big.Int).Exp(big.NewInt(2), big.NewInt(32), big.NewInt(0)).Int64()
 
-	x1 := newFieldElement(143, prime)
-	y1 := newFieldElement(98, prime)
+	// fmt.Printf("2^256 = %v\n", twopow256)
+	// fmt.Printf("2^32 = %v\n", twopow32)
+	// twopow256 := math.Pow(2, 256)
+	// twopow32 := math.Pow(2, 32)
 
-	x2 := newFieldElement(76, prime)
-	y2 := newFieldElement(66, prime)
+	// p := int(twopow256) - int(twopow32) - 977
 
-	p1 := newPoint(*x1, *y1, *a, *b)
-	p2 := newPoint(*x2, *y2, *a, *b)
+	// a := newFieldElement(0, p)
+	// b := newFieldElement(7, p)
 
-	add1 := p1.add(*p2)
-	add1.repr()
+	// gxs := "0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+	// gys := "0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"
 
-	// powaresult := a.pow(7)
-	// powbresult := b.pow(49)
+	// gx, _ := strconv.ParseUint(hexToInt(gxs), 16, 64)
+	// gy, _ := strconv.ParseUint(hexToInt(gys), 16, 64)
 
-	// mulresult := powaresult.mul(*powbresult)
+	// // x1 := newFieldElement(55066263022277343669578718895168534326250603453777594175500187360389116729240, p)
+	// // y1 := newFieldElement(32670510020758816978083085130507043184471273380659243275938904335757337482424, p)
 
-	// fmt.Println(mulresult)
+	// x1 := newFieldElement(int(gx), p)
+	// y1 := newFieldElement(int(gy), p)
 
-	// c := newFieldElement(3, 31)
-	// d := newFieldElement(24, 31)
-
-	// divresult := c.div(*d)
-
-	// fmt.Println(divresult)
-
-	// e := newFieldElement(17, 31)
-	// fmt.Println(e.pow(-3))
-
-	// f := newFieldElement(4, 31)
-	// powf := f.pow(-4)
-	// g := newFieldElement(11, 31)
-	// fmt.Println(powf.mul(*g))
-
-	// p1 := newPoint(2, 5, 5, 7)
-	// p2 := newPoint(-1, -1, 5, 7)
-	//p3 := newPoint(18, 77, 5, 7)
-	// p4 := newPoint(3, 7, 5, 7)
-	// p5 := newPoint(3, 7, 5, 7)
+	// p1 := newPoint(*x1, *y1, *a, *b)
 
 	// fmt.Println(p1)
-	// fmt.Println(p2)
-	//fmt.Println(p3)
-	//fmt.Println(p4)
+}
+
+func hexToInt(hexString string) string {
+	numberStr := strings.Replace(hexString, "0x", "", -1)
+	return numberStr
 }
