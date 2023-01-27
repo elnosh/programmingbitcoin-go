@@ -20,14 +20,19 @@ func main() {
 
 	gx := fromHex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
 	gy := fromHex("483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8")
+	n := fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 
-	x1 := newFieldElement(gx, p)
-	y1 := newFieldElement(gy, p)
+	x := newFieldElement(gx, p)
+	y := newFieldElement(gy, p)
 
-	p1 := newPoint(*x1, *y1, *a, *b)
-	if p1 != nil {
-		fmt.Printf("p.x = %v, p.y = %v", p1.x.num, p1.y.num)
+	g := newPoint(*x, *y, *a, *b)
+	if g != nil {
+		fmt.Println("g is on the curve")
+		//fmt.Printf("p.x = %v, p.y = %v", g.x.num, g.y.num)
 	}
+
+	ng := g.rmul(n)
+	ng.repr()
 }
 
 func fromHex(s string) *big.Int {
@@ -40,3 +45,24 @@ func fromHex(s string) *big.Int {
 	}
 	return r
 }
+
+// func main() {
+// 	var infelement FieldElement
+// 	fmt.Println(infelement)
+
+// 	//	var infelement FieldElement
+// 	newPoint(infelement, infelement, infelement, infelement)
+
+// 	prime := big.NewInt(223)
+
+// 	a := newFieldElement(big.NewInt(0), prime)
+// 	b := newFieldElement(big.NewInt(7), prime)
+// 	x := newFieldElement(big.NewInt(15), prime)
+// 	y := newFieldElement(big.NewInt(86), prime)
+
+// 	p := newPoint(*x, *y, *a, *b)
+
+// 	np := p.rmul(big.NewInt(7))
+// 	//np := p.rmul(big.NewInt(1000000000000))
+// 	np.repr()
+// }

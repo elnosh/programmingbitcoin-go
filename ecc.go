@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"math/big"
-	"math/bits"
 )
 
 type FieldElement struct {
@@ -12,11 +11,6 @@ type FieldElement struct {
 }
 
 func newFieldElement(num, prime *big.Int) *FieldElement {
-	// if num < 0 || num >= prime {
-	// 	fmt.Printf("num %d not in field range 0 to %d\n", num, prime-1)
-	// 	return nil
-	// }
-
 	// if num < 0 || num >= prime
 	if num.Sign() == -1 || num.Cmp(prime) == 1 {
 		fmt.Printf("num %d not in field range 0 to %d\n", num, prime.Sub(prime, big.NewInt(1)))
@@ -111,6 +105,13 @@ func (e FieldElement) repr() {
 	fmt.Printf("FieldElement_%d (%d)\n", e.prime, e.num)
 }
 
+func isInf(e FieldElement) bool {
+	if e.num == nil && e.prime == nil {
+		return true
+	}
+	return false
+}
+
 type Point struct {
 	x FieldElement
 	y FieldElement
@@ -121,14 +122,9 @@ type Point struct {
 func newPoint(x, y, a, b FieldElement) *Point {
 	p := &Point{x: x, y: y, a: a, b: b}
 
-	// if x.num == math.MinInt && y.num == math.MinInt {
-	// 	inf := int(math.Inf(x.num))
-	// 	infelement := newFieldElement(inf, x.prime)
-	// 	return &Point{x: *infelement, y: *infelement, a: a, b: b}
-	// }
-	if x.num == nil && y.num == nil {
-		infelement := newFieldElement(nil, x.prime)
-		return &Point{x: *infelement, y: *infelement, a: a, b: b}
+	if isInf(x) && isInf(y) {
+		var infelement FieldElement
+		return &Point{x: infelement, y: infelement, a: a, b: b}
 	}
 
 	squarey := y.pow(big.NewInt(2))
@@ -148,7 +144,6 @@ func (p Point) eq(point Point) bool {
 		return true
 	}
 	return false
-	//return p == point
 }
 
 func (p Point) ne(point Point) bool {
@@ -156,33 +151,29 @@ func (p Point) ne(point Point) bool {
 		return true
 	}
 	return false
-	//return p != point
 }
 
 func (p Point) add(point Point) *Point {
-	if p.a != point.a || p.b != point.b {
+	if p.a.ne(point.a) || p.b.ne(point.b) {
 		fmt.Printf("Points %v, %v are not on the same curve\n", p, point)
 		return nil
 	}
 
-	if p.x.num == nil {
+	if isInf(p.x) {
 		return &point
 	}
-
-	if point.x.num == nil {
+	if isInf(point.x) {
 		return &p
 	}
 
-	if p.x == point.x && p.y != point.y {
-		//inf := int(math.Inf(p.x.num))
-		infelement := newFieldElement(nil, p.a.prime)
-		return &Point{x: *infelement, y: *infelement, a: p.a, b: p.b}
+	if p.x.eq(point.x) && p.y.ne(point.y) {
+		var infelement FieldElement
+		return newPoint(infelement, infelement, p.a, p.b)
 	}
 
 	if p.eq(point) && p.y.num.Sign() == 0 {
-		//inf := int(math.Inf(p.x.num))
-		infelement := newFieldElement(nil, p.a.prime)
-		return &Point{x: *infelement, y: *infelement, a: p.a, b: p.b}
+		var infelement FieldElement
+		return newPoint(infelement, infelement, p.a, p.b)
 	}
 
 	if p.x.ne(point.x) {
@@ -217,26 +208,37 @@ func (p Point) add(point Point) *Point {
 	return nil
 }
 
-func (p Point) rmul(num int) *Point {
+func (p Point) rmul(num *big.Int) *Point {
 	current := &p
-
 	coef := num
-	//inf := math.Inf(0)
-	//infelement := newFieldElement(int(inf), p.a.prime)
-	infelement := newFieldElement(nil, p.a.prime)
-	result := newPoint(*infelement, *infelement, p.a, p.b)
+	var infelement FieldElement
+	result := newPoint(infelement, infelement, p.a, p.b)
 
-	for i := 0; i < bits.Len(uint(num)); i++ {
-		if (coef & 1) != 0 {
+	numlen := num.BitLen()
+	for i := 0; i < numlen; i++ {
+		temp := new(big.Int).Set(coef)
+		coefand1 := temp.And(coef, big.NewInt(1))
+		if coefand1.Sign() != 0 {
 			result = result.add(*current)
 		}
 		current = current.add(*current)
-		coef = coef >> 1
+		coef.Rsh(coef, 1)
+		//fmt.Printf("current x, y = (%v, %v)\n", current.x.num, current.y.num)
+
+		// if (coef & 1) != 0 {
+		// 	result = result.add(*current)
+		// }
+		// current = current.add(*current)
+		//coef = coef >> 1
 	}
 
 	return result
 }
 
 func (p Point) repr() {
-	fmt.Printf("Point(%d, %d)_%d_%d FieldElement(%d)\n", p.x.num, p.y.num, p.a.num, p.b.num, p.x.prime)
+	if isInf(p.x) && isInf(p.y) {
+		fmt.Printf("Point(infinity, infinity)_%d_%d FieldElement(%d)\n", p.a.num, p.b.num, p.a.prime)
+		return
+	}
+	fmt.Printf("Point(%d, %d)_%d_%d FieldElement(%d)\n", p.x.num, p.y.num, p.a.num, p.b.num, p.a.prime)
 }
