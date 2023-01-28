@@ -5,6 +5,25 @@ import (
 	"math/big"
 )
 
+var twopow256 *big.Int = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+var twopow32 *big.Int = new(big.Int).Exp(big.NewInt(2), big.NewInt(32), big.NewInt(0))
+
+var sub *big.Int = twopow256.Sub(twopow256, twopow32)
+var prime256 *big.Int = sub.Sub(sub, big.NewInt(977))
+
+func fromHex(s string) *big.Int {
+	if s == "" {
+		return big.NewInt(0)
+	}
+	r, ok := new(big.Int).SetString(s, 16)
+	if !ok {
+		panic("invalid hex: " + s)
+	}
+	return r
+}
+
+var n *big.Int = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
+
 type FieldElement struct {
 	num   *big.Int // single finite field element
 	prime *big.Int // field
@@ -19,12 +38,15 @@ func newFieldElement(num, prime *big.Int) *FieldElement {
 	return &FieldElement{num: num, prime: prime}
 }
 
+func newS256FieldElement(num *big.Int) *FieldElement {
+	return newFieldElement(num, prime256)
+}
+
 func (e FieldElement) eq(element FieldElement) bool {
 	if e.num.Cmp(element.num) == 0 && e.prime.Cmp(element.prime) == 0 {
 		return true
 	}
 	return false
-	//return e.num == element.num && e.prime == element.prime
 }
 
 func (e FieldElement) ne(element FieldElement) bool {
@@ -32,7 +54,6 @@ func (e FieldElement) ne(element FieldElement) bool {
 		return true
 	}
 	return false
-	//return e.num != element.num || e.prime != element.prime
 }
 
 func (e FieldElement) add(element FieldElement) *FieldElement {
@@ -41,7 +62,7 @@ func (e FieldElement) add(element FieldElement) *FieldElement {
 		return nil
 	}
 
-	//num := mod((e.num + element.num), e.prime)
+	// (e.num + element.num) % e.prime
 	ec := newFieldElement(new(big.Int).Set(e.num), new(big.Int).Set(e.prime))
 	elc := newFieldElement(new(big.Int).Set(element.num), new(big.Int).Set(element.prime))
 	sum := ec.num.Add(ec.num, elc.num)
@@ -55,7 +76,7 @@ func (e FieldElement) sub(element FieldElement) *FieldElement {
 		return nil
 	}
 
-	//num := mod((e.num - element.num), e.prime)
+	// (e.num - element.num) % e.prime
 	ec := newFieldElement(new(big.Int).Set(e.num), new(big.Int).Set(e.prime))
 	elc := newFieldElement(new(big.Int).Set(element.num), new(big.Int).Set(element.prime))
 	sub := ec.num.Sub(ec.num, elc.num)
@@ -69,7 +90,7 @@ func (e FieldElement) mul(element FieldElement) *FieldElement {
 		return nil
 	}
 
-	//num := mod((e.num * element.num), e.prime)
+	// (e.num * element.num) % e.prime
 	ec := newFieldElement(new(big.Int).Set(e.num), new(big.Int).Set(e.prime))
 	elc := newFieldElement(new(big.Int).Set(element.num), new(big.Int).Set(element.prime))
 	mul := ec.num.Mul(ec.num, elc.num)
@@ -78,9 +99,8 @@ func (e FieldElement) mul(element FieldElement) *FieldElement {
 }
 
 func (e FieldElement) pow(exponent *big.Int) *FieldElement {
+	// (e.num ** exponent) % e.prime
 	num := new(big.Int).Exp(e.num, exponent, e.prime)
-
-	//num := mod(int(powres.Int64()), e.prime)
 	return &FieldElement{num: num, prime: e.prime}
 }
 
@@ -137,6 +157,16 @@ func newPoint(x, y, a, b FieldElement) *Point {
 	}
 
 	return p
+}
+
+func newS256Point(x, y *big.Int) *Point {
+	a := newS256FieldElement(big.NewInt(0))
+	fmt.Printf("prime a = %v\n", a.prime)
+	b := newS256FieldElement(big.NewInt(7))
+	xp := newS256FieldElement(x)
+	fmt.Printf("prime xp = %v\n", xp.prime)
+	yp := newS256FieldElement(y)
+	return newPoint(*xp, *yp, *a, *b)
 }
 
 func (p Point) eq(point Point) bool {
@@ -208,31 +238,30 @@ func (p Point) add(point Point) *Point {
 	return nil
 }
 
-func (p Point) rmul(num *big.Int) *Point {
+func (p Point) rmul(coefficient *big.Int) *Point {
 	current := &p
-	coef := num
+	coef := coefficient
 	var infelement FieldElement
 	result := newPoint(infelement, infelement, p.a, p.b)
 
-	numlen := num.BitLen()
+	numlen := coefficient.BitLen()
 	for i := 0; i < numlen; i++ {
 		temp := new(big.Int).Set(coef)
 		coefand1 := temp.And(coef, big.NewInt(1))
+		// if (coef & 1) != 0 {
 		if coefand1.Sign() != 0 {
 			result = result.add(*current)
 		}
 		current = current.add(*current)
-		coef.Rsh(coef, 1)
-		//fmt.Printf("current x, y = (%v, %v)\n", current.x.num, current.y.num)
-
-		// if (coef & 1) != 0 {
-		// 	result = result.add(*current)
-		// }
-		// current = current.add(*current)
 		//coef = coef >> 1
+		coef.Rsh(coef, 1)
 	}
 
 	return result
+}
+
+func (p Point) rmulS256() *Point {
+	return p.rmul(n)
 }
 
 func (p Point) repr() {
