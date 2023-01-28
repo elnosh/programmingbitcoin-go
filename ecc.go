@@ -112,7 +112,6 @@ func (e FieldElement) div(divisor FieldElement) *FieldElement {
 
 	// divpow := divisor.pow(e.prime - 2)
 	// num := mod((e.mul(*divpow).num), e.prime)
-
 	temp := new(big.Int).Set(e.prime)
 	divpow := divisor.pow(temp.Sub(e.prime, big.NewInt(2)))
 	divres := e.mul(*divpow)
@@ -122,7 +121,7 @@ func (e FieldElement) div(divisor FieldElement) *FieldElement {
 }
 
 func (e FieldElement) repr() {
-	fmt.Printf("FieldElement_%d (%d)\n", e.prime, e.num)
+	fmt.Printf("FieldElement_%f (%f)\n", e.prime, e.num)
 }
 
 func isInf(e FieldElement) bool {

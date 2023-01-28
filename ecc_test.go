@@ -362,36 +362,3 @@ func TestOnCurve(t *testing.T) {
 	}
 
 }
-
-//func TestAddPoint(t *testing.T) {
-//	prime := 98
-//	a := newFieldElement(5, prime)
-//	b := newFieldElement(7, prime)
-
-//	// infelement := newFieldElement(int(math.Inf(0)), prime)
-//	// ap := newPoint(*infelement, *infelement, *a, *b)
-//	// bp := newPoint(*newFieldElement(2, prime), *newFieldElement(5, prime), *a, *b)
-//	// cp := newPoint(*newFieldElement(2, prime), *newFieldElement(-5, prime), *a, *b)
-//	dp := newPoint(*newFieldElement(3, prime), *newFieldElement(7, prime), *a, *b)
-//	ep := newPoint(*newFieldElement(-1, prime), *newFieldElement(-1, prime), *a, *b)
-
-//	cases := []struct {
-//		e1   Point
-//		e2   Point
-//		want Point
-//	}{
-//		//{*ap, *bp, *bp},
-//		//{*bp, *ap, *bp},
-//		//{*ap, *cp, *cp},
-//		//{*bp, *cp, *ap},
-//		{*dp, *ep, Point{x: *newFieldElement(2, prime), y: *newFieldElement(-5, prime), a: *a, b: *b}},
-//		{*ep, *ep, Point{x: *newFieldElement(18, prime), y: *newFieldElement(77, prime), a: *a, b: *b}},
-//	}
-
-//	for _, test := range cases {
-//		result := test.e1.add(test.e2)
-//		if *result != test.want {
-//			t.Errorf("expected '%v' but got '%v' instead\n", test.want, *result)
-//		}
-//	}
-//}
