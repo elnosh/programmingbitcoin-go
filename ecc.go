@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"math/big"
 )
@@ -10,17 +11,6 @@ var twopow32 *big.Int = new(big.Int).Exp(big.NewInt(2), big.NewInt(32), big.NewI
 
 var sub *big.Int = twopow256.Sub(twopow256, twopow32)
 var prime256 *big.Int = sub.Sub(sub, big.NewInt(977))
-
-func fromHex(s string) *big.Int {
-	if s == "" {
-		return big.NewInt(0)
-	}
-	r, ok := new(big.Int).SetString(s, 16)
-	if !ok {
-		panic("invalid hex: " + s)
-	}
-	return r
-}
 
 var n *big.Int = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
 
@@ -160,13 +150,16 @@ func newPoint(x, y, a, b FieldElement) *Point {
 
 func newS256Point(x, y *big.Int) *Point {
 	a := newS256FieldElement(big.NewInt(0))
-	fmt.Printf("prime a = %v\n", a.prime)
 	b := newS256FieldElement(big.NewInt(7))
 	xp := newS256FieldElement(x)
-	fmt.Printf("prime xp = %v\n", xp.prime)
 	yp := newS256FieldElement(y)
 	return newPoint(*xp, *yp, *a, *b)
 }
+
+var gx *big.Int = fromHex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
+var gy *big.Int = fromHex("483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8")
+
+var g *Point = newS256Point(gx, gy)
 
 func (p Point) eq(point Point) bool {
 	if p.x.eq(point.x) && p.y.eq(point.y) && p.a.eq(point.a) && p.b.eq(point.b) {
@@ -239,7 +232,7 @@ func (p Point) add(point Point) *Point {
 
 func (p Point) rmul(coefficient *big.Int) *Point {
 	current := &p
-	coef := coefficient
+	coef := new(big.Int).Set(coefficient)
 	var infelement FieldElement
 	result := newPoint(infelement, infelement, p.a, p.b)
 
@@ -259,14 +252,72 @@ func (p Point) rmul(coefficient *big.Int) *Point {
 	return result
 }
 
-func (p Point) rmulS256() *Point {
-	return p.rmul(n)
+func (p Point) rmulS256(coefficient *big.Int) *Point {
+	coefc := new(big.Int).Set(coefficient)
+	coefc.Mod(coefc, n)
+	return p.rmul(coefc)
 }
 
-func (p Point) repr() {
+func (p Point) verifySignature(s Signature, z *big.Int) bool {
+	nc := new(big.Int).Set(n)
+	s_inv := new(big.Int).Exp(s.s, nc.Sub(nc, big.NewInt(2)), n)
+
+	zc := new(big.Int).Set(z)
+	rc := new(big.Int).Set(s.r)
+
+	umul := zc.Mul(zc, s_inv)
+	u := umul.Mod(umul, n)
+
+	vmul := rc.Mul(rc, s_inv)
+	v := vmul.Mod(vmul, n)
+
+	uG := g.rmulS256(u)
+	vP := p.rmulS256(v)
+
+	sum := uG.add(*vP)
+	return s.r.Cmp(sum.x.num) == 0
+}
+
+func (p Point) repr() string {
 	if isInf(p.x) && isInf(p.y) {
-		fmt.Printf("Point(infinity, infinity)_%d_%d FieldElement(%d)\n", p.a.num, p.b.num, p.a.prime)
-		return
+		return fmt.Sprintf("Point(infinity, infinity)_%d_%d FieldElement(%d)\n", p.a.num, p.b.num, p.a.prime)
 	}
-	fmt.Printf("Point(%d, %d)_%d_%d FieldElement(%d)\n", p.x.num, p.y.num, p.a.num, p.b.num, p.a.prime)
+	return fmt.Sprintf("Point(%x, %x)_%d_%d FieldElement(%d)\n", p.x.num, p.y.num, p.a.num, p.b.num, p.a.prime)
+}
+
+type Signature struct {
+	r *big.Int
+	s *big.Int
+}
+
+func (s Signature) repr() {
+	fmt.Printf("Signature(%d, %d)\n", s.r, s.s)
+}
+
+type PrivateKey struct {
+	secret *big.Int
+	point  Point // public key
+}
+
+func newPrivateKey(secret *big.Int) *PrivateKey {
+	publicKey := g.rmulS256(secret)
+	return &PrivateKey{secret: secret, point: *publicKey}
+}
+
+func (pp PrivateKey) sign(z *big.Int) *Signature {
+	zc := new(big.Int).Set(z)
+
+	k, _ := rand.Int(rand.Reader, n)
+	r := g.rmulS256(k).x.num
+	rc := new(big.Int).Set(r)
+
+	nc := new(big.Int).Set(n)
+	k_inv := new(big.Int).Exp(k, nc.Sub(nc, big.NewInt(2)), n)
+
+	re := rc.Mul(rc, pp.secret)
+	zre := zc.Add(zc, re)
+	zrek := zre.Mul(zre, k_inv)
+	s := zrek.Mod(zrek, n)
+
+	return &Signature{r: r, s: s}
 }
