@@ -445,10 +445,14 @@ func TestPublicPoint(t *testing.T) {
 	secret4 := exp.Add(exp, exp2)
 
 	points := [][3]*big.Int{
-		{secret, fromHex("5cbdf0646e5db4eaa398f365f2ea7a0e3d419b7e0330e39ce92bddedcac4f9bc"), fromHex("6aebca40ba255960a3178d6d861a54dba813d0b813fde7b5a5082628087264da")},
-		{secret2, fromHex("c982196a7466fbbbb0e27a940b6af926c1a74d5ad07128c82824a11b5398afda"), fromHex("7a91f9eae64438afb9ce6448a1c133db2d8fb9254e4546b6f001637d50901f55")},
-		{secret3, fromHex("8f68b9d2f63b5f339239c1ad981f162ee88c5678723ea3351b7b444c9ec4c0da"), fromHex("662a9f2dba063986de1d90c2b6be215dbbea2cfe95510bfdf23cbf79501fff82")},
-		{secret4, fromHex("9577ff57c8234558f293df502ca4f09cbc65a6572c842b39b366f21717945116"), fromHex("10b49c67fa9365ad7b90dab070be339a1daf9052373ec30ffae4f72d5e66d053")},
+		{secret, fromHex("5cbdf0646e5db4eaa398f365f2ea7a0e3d419b7e0330e39ce92bddedcac4f9bc"),
+			fromHex("6aebca40ba255960a3178d6d861a54dba813d0b813fde7b5a5082628087264da")},
+		{secret2, fromHex("c982196a7466fbbbb0e27a940b6af926c1a74d5ad07128c82824a11b5398afda"),
+			fromHex("7a91f9eae64438afb9ce6448a1c133db2d8fb9254e4546b6f001637d50901f55")},
+		{secret3, fromHex("8f68b9d2f63b5f339239c1ad981f162ee88c5678723ea3351b7b444c9ec4c0da"),
+			fromHex("662a9f2dba063986de1d90c2b6be215dbbea2cfe95510bfdf23cbf79501fff82")},
+		{secret4, fromHex("9577ff57c8234558f293df502ca4f09cbc65a6572c842b39b366f21717945116"),
+			fromHex("10b49c67fa9365ad7b90dab070be339a1daf9052373ec30ffae4f72d5e66d053")},
 	}
 
 	for _, test := range points {
@@ -472,8 +476,12 @@ func TestVerifySignature(t *testing.T) {
 		s    *big.Int
 		want bool
 	}{
-		{fromHex("ec208baa0fc1c19f708a9ca96fdeff3ac3f230bb4a7ba4aede4942ad003c0f60"), fromHex("ac8d1c87e51d0d441be8b3dd5b05c8795b48875dffe00b7ffcfac23010d3a395"), fromHex("68342ceff8935ededd102dd876ffd6ba72d6a427a3edb13d26eb0781cb423c4"), true},
-		{fromHex("7c076ff316692a3d7eb3c3bb0f8b1488cf72e1afcd929e29307032997a838a3d"), fromHex("eff69ef2b1bd93a66ed5219add4fb51e11a840f404876325a1e8ffe0529a2c"), fromHex("c7207fee197d27c618aea621406f6bf5ef6fca38681d82b2f06fddbdce6feab6"), true},
+		{fromHex("ec208baa0fc1c19f708a9ca96fdeff3ac3f230bb4a7ba4aede4942ad003c0f60"),
+			fromHex("ac8d1c87e51d0d441be8b3dd5b05c8795b48875dffe00b7ffcfac23010d3a395"),
+			fromHex("68342ceff8935ededd102dd876ffd6ba72d6a427a3edb13d26eb0781cb423c4"), true},
+		{fromHex("7c076ff316692a3d7eb3c3bb0f8b1488cf72e1afcd929e29307032997a838a3d"),
+			fromHex("eff69ef2b1bd93a66ed5219add4fb51e11a840f404876325a1e8ffe0529a2c"),
+			fromHex("c7207fee197d27c618aea621406f6bf5ef6fca38681d82b2f06fddbdce6feab6"), true},
 	}
 
 	for _, test := range cases {

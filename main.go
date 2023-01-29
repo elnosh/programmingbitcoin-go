@@ -8,7 +8,7 @@ import (
 func main() {
 	privKey := newPrivateKey(big.NewInt(12345))
 
-	z := hash256([]byte("Programming Bitcoin!"))
+	z := hash256([]byte("some message"))
 	signature := privKey.sign(z)
 
 	point := g.rmulS256(privKey.secret)
