@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"math/big"
@@ -278,6 +279,70 @@ func (p Point) verifySignature(s Signature, z *big.Int) bool {
 	return s.r.Cmp(sum.x.num) == 0
 }
 
+func (p Point) sec(compressed bool) []byte {
+	prefixbuf := make([]byte, 1)
+	xbuf := make([]byte, 32)
+
+	xbuf = p.x.num.FillBytes(xbuf)
+	if compressed {
+		yc := new(big.Int).Set(p.y.num)
+		yc.Mod(yc, big.NewInt(2))
+		// if y is even - prefix 02. Else prefix 03
+		if yc.Sign() == 0 {
+			prefixbuf = big.NewInt(2).FillBytes(prefixbuf)
+		} else {
+			prefixbuf = big.NewInt(3).FillBytes(prefixbuf)
+		}
+	} else {
+		prefixbuf = big.NewInt(4).FillBytes(prefixbuf)
+		ybuf := make([]byte, 32)
+		ybuf = p.y.num.FillBytes(ybuf)
+		return bytes.Join([][]byte{prefixbuf, xbuf, ybuf}, []byte{})
+	}
+
+	return bytes.Join([][]byte{prefixbuf, xbuf}, []byte{})
+}
+
+func (p Point) parse(sec_arr []byte) *Point {
+	prefix := int(sec_arr[0])
+	if prefix == 4 {
+		x := new(big.Int).SetBytes(sec_arr[1:33])
+		y := new(big.Int).SetBytes(sec_arr[33:])
+		return newS256Point(x, y)
+	}
+
+	x := new(big.Int).SetBytes(sec_arr[1:])
+	isEven := prefix == 2
+
+	// y^2 = x^3 + 7
+	powr := new(big.Int).Set(x).Exp(x, big.NewInt(3), nil)
+	right := powr.Add(powr, big.NewInt(7))
+	left := sqrt(right)
+
+	var even_left, odd_left *big.Int
+	if new(big.Int).Set(left).Mod(left, big.NewInt(2)).Sign() == 0 {
+		even_left = left
+		odd_left = new(big.Int).Set(prime256).Sub(prime256, left)
+	} else {
+		even_left = new(big.Int).Set(prime256).Sub(prime256, left)
+		odd_left = left
+	}
+
+	if isEven {
+		return newS256Point(x, even_left)
+	} else {
+		return newS256Point(x, odd_left)
+	}
+}
+
+func sqrt(num *big.Int) *big.Int {
+	exp := new(big.Int).Set(prime256).Add(prime256, big.NewInt(1))
+	exp.Div(exp, big.NewInt(4))
+
+	result := new(big.Int).Set(num).Exp(num, exp, nil)
+	return result
+}
+
 func (p Point) repr() string {
 	if isInf(p.x) && isInf(p.y) {
 		return fmt.Sprintf("Point(infinity, infinity)_%d_%d FieldElement(%d)\n", p.a.num, p.b.num, p.a.prime)
@@ -292,6 +357,30 @@ type Signature struct {
 
 func (s Signature) repr() {
 	fmt.Printf("Signature(%d, %d)\n", s.r, s.s)
+}
+
+// der encoding
+func (s Signature) der() []byte {
+	prepfix := []byte{0x00}
+	marker := []byte{0x02}
+
+	rbytes := new(big.Int).Set(s.r).Bytes()
+	if rbytes[0] >= 0x80 {
+		rbytes = bytes.Join([][]byte{prepfix, rbytes}, []byte{})
+	}
+
+	rlen := []byte{byte(len(rbytes))}
+	result := bytes.Join([][]byte{marker, rlen, rbytes}, []byte{})
+
+	sbytes := new(big.Int).Set(s.s).Bytes()
+	if sbytes[0] >= 0x80 {
+		sbytes = bytes.Join([][]byte{prepfix, sbytes}, []byte{})
+	}
+	slen := []byte{byte(len(sbytes))}
+	result = bytes.Join([][]byte{result, marker, slen, sbytes}, []byte{})
+	marker = []byte{0x30}
+	reslen := []byte{byte(len(result))}
+	return bytes.Join([][]byte{marker, reslen, result}, []byte{})
 }
 
 type PrivateKey struct {
