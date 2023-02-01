@@ -7,13 +7,13 @@ import (
 	"math/big"
 )
 
-var twopow256 *big.Int = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
-var twopow32 *big.Int = new(big.Int).Exp(big.NewInt(2), big.NewInt(32), big.NewInt(0))
-
-var sub *big.Int = twopow256.Sub(twopow256, twopow32)
-var prime256 *big.Int = sub.Sub(sub, big.NewInt(977))
-
-var n *big.Int = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
+var (
+	twopow256 *big.Int = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+	twopow32  *big.Int = new(big.Int).Exp(big.NewInt(2), big.NewInt(32), big.NewInt(0))
+	sub       *big.Int = twopow256.Sub(twopow256, twopow32)
+	prime256  *big.Int = sub.Sub(sub, big.NewInt(977))
+	n         *big.Int = fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
+)
 
 type FieldElement struct {
 	num   *big.Int // single finite field element
@@ -157,10 +157,11 @@ func newS256Point(x, y *big.Int) *Point {
 	return newPoint(*xp, *yp, *a, *b)
 }
 
-var gx *big.Int = fromHex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
-var gy *big.Int = fromHex("483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8")
-
-var g *Point = newS256Point(gx, gy)
+var (
+	gx *big.Int = fromHex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
+	gy *big.Int = fromHex("483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8")
+	g  *Point   = newS256Point(gx, gy)
+)
 
 func (p Point) eq(point Point) bool {
 	if p.x.eq(point.x) && p.y.eq(point.y) && p.a.eq(point.a) && p.b.eq(point.b) {
