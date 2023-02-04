@@ -336,6 +336,24 @@ func (p Point) parse(sec_arr []byte) *Point {
 	}
 }
 
+func (p Point) hash160(compressed bool) []byte {
+	return hash160(p.sec(compressed))
+}
+
+func (p Point) address(compressed, testnet bool) string {
+	h160 := p.hash160(compressed)
+
+	var prefix []byte
+	if testnet {
+		prefix = []byte{0x6f}
+	} else {
+		prefix = []byte{0x00}
+	}
+
+	pkhash := bytes.Join([][]byte{prefix, h160}, []byte{})
+	return base58encodeChecksum(pkhash)
+}
+
 func sqrt(num *big.Int) *big.Int {
 	exp := new(big.Int).Set(prime256).Add(prime256, big.NewInt(1))
 	exp.Div(exp, big.NewInt(4))
@@ -410,4 +428,27 @@ func (pp PrivateKey) sign(z *big.Int) *Signature {
 	s := zrek.Mod(zrek, n)
 
 	return &Signature{r: r, s: s}
+}
+
+// wallet import format
+func (pp PrivateKey) wif(compressed, testnet bool) string {
+	secretBytes := make([]byte, 32)
+	secretBytes = new(big.Int).Set(pp.secret).FillBytes(secretBytes)
+
+	var prefix []byte
+	if testnet {
+		prefix = []byte{0xef}
+	} else {
+		prefix = []byte{0x80}
+	}
+
+	var suffix []byte
+	if compressed {
+		suffix = []byte{0x01}
+	} else {
+		suffix = []byte{}
+	}
+
+	payload := bytes.Join([][]byte{prefix, secretBytes, suffix}, []byte{})
+	return base58encodeChecksum(payload)
 }
