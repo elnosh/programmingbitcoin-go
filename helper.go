@@ -67,19 +67,39 @@ func fromHex(s string) *big.Int {
 	return r
 }
 
-func readVarint(hexnum []byte) int {
-	i := hexnum[0]
-
-	numbuf := hexnum[1:]
-	if i == 0xfd {
-		return int(binary.LittleEndian.Uint16(numbuf))
-	} else if i == 0xfe {
-		return int(binary.LittleEndian.Uint32(numbuf))
-	} else if i == 0xff {
-		return int(binary.LittleEndian.Uint64(numbuf))
+func readVarint(varint []byte) (int, int, error) {
+	varintbuf := bytes.NewBuffer(varint)
+	var numbuf []byte
+	i := make([]byte, 1)
+	_, err := varintbuf.Read(i)
+	if err != nil {
+		return -1, -1, err
 	}
 
-	return int(i)
+	if i[0] == 0xfd {
+		numbuf = make([]byte, 2)
+		_, err = varintbuf.Read(numbuf)
+		if err != nil {
+			return -1, -1, err
+		}
+		return int(binary.LittleEndian.Uint16(numbuf)), 2, nil
+	} else if i[0] == 0xfe {
+		numbuf = make([]byte, 4)
+		_, err = varintbuf.Read(numbuf)
+		if err != nil {
+			return -1, -1, err
+		}
+		return int(binary.LittleEndian.Uint32(numbuf)), 4, nil
+	} else if i[0] == 0xff {
+		numbuf = make([]byte, 8)
+		_, err = varintbuf.Read(numbuf)
+		if err != nil {
+			return -1, -1, err
+		}
+		return int(binary.LittleEndian.Uint64(numbuf)), 8, nil
+	}
+
+	return int(i[0]), 1, nil
 }
 
 func encodeVarint(num int) ([]byte, error) {
