@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"io"
 	"math/big"
 
 	"golang.org/x/crypto/ripemd160"
@@ -67,39 +68,39 @@ func fromHex(s string) *big.Int {
 	return r
 }
 
-func readVarint(varint []byte) (int, int, error) {
-	varintbuf := bytes.NewBuffer(varint)
+func readVarint(varint io.Reader) (int, error) {
+	//varintbuf := bytes.NewBuffer(varint)
 	var numbuf []byte
 	i := make([]byte, 1)
-	_, err := varintbuf.Read(i)
+	_, err := varint.Read(i)
 	if err != nil {
-		return -1, -1, err
+		return -1, err
 	}
 
 	if i[0] == 0xfd {
 		numbuf = make([]byte, 2)
-		_, err = varintbuf.Read(numbuf)
+		_, err = varint.Read(numbuf)
 		if err != nil {
-			return -1, -1, err
+			return -1, err
 		}
-		return int(binary.LittleEndian.Uint16(numbuf)), 2, nil
+		return int(binary.LittleEndian.Uint16(numbuf)), nil
 	} else if i[0] == 0xfe {
 		numbuf = make([]byte, 4)
-		_, err = varintbuf.Read(numbuf)
+		_, err = varint.Read(numbuf)
 		if err != nil {
-			return -1, -1, err
+			return -1, err
 		}
-		return int(binary.LittleEndian.Uint32(numbuf)), 4, nil
+		return int(binary.LittleEndian.Uint32(numbuf)), nil
 	} else if i[0] == 0xff {
 		numbuf = make([]byte, 8)
-		_, err = varintbuf.Read(numbuf)
+		_, err = varint.Read(numbuf)
 		if err != nil {
-			return -1, -1, err
+			return -1, err
 		}
-		return int(binary.LittleEndian.Uint64(numbuf)), 8, nil
+		return int(binary.LittleEndian.Uint64(numbuf)), nil
 	}
 
-	return int(i[0]), 1, nil
+	return int(i[0]), nil
 }
 
 func encodeVarint(num int) ([]byte, error) {

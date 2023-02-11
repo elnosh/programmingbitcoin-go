@@ -280,6 +280,7 @@ func (p Point) verifySignature(s Signature, z *big.Int) bool {
 	return s.r.Cmp(sum.x.num) == 0
 }
 
+// Standards for Efficient Cryptography
 func (p Point) sec(compressed bool) []byte {
 	prefixbuf := make([]byte, 1)
 	xbuf := make([]byte, 32)
@@ -378,7 +379,7 @@ func (s Signature) repr() {
 	fmt.Printf("Signature(%d, %d)\n", s.r, s.s)
 }
 
-// der encoding
+// Distinguished Encoding Rules format
 func (s Signature) der() []byte {
 	prepfix := []byte{0x00}
 	marker := []byte{0x02}
