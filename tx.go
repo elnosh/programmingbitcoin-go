@@ -88,8 +88,10 @@ func newTxIn(prevTx [32]byte, prevTxIdx uint32, scriptSig []byte, sequence uint3
 }
 
 func parseTxIn(txHex io.Reader) *TxIn {
-	var tx [32]byte
-	_, err := txHex.Read(tx[:])
+	//var tx [32]byte
+	tx := make([]byte, 32)
+
+	_, err := txHex.Read(tx)
 	if err != nil {
 		fmt.Println("error parsing tx input: ", err)
 		return nil
@@ -97,28 +99,30 @@ func parseTxIn(txHex io.Reader) *TxIn {
 	// reversing because incoming prev tx hash is in little endian
 	prevTx := reversePrevTxInId(tx)
 
-	var txIdxbuf [4]byte
-	_, err = txHex.Read(txIdxbuf[:])
+	//var txIdxbuf [4]byte
+	txIdxbuf := make([]byte, 4)
+	_, err = txHex.Read(txIdxbuf)
 	if err != nil {
 		fmt.Println("error parsing tx input: ", err)
 		return nil
 	}
-	txIdx := binary.LittleEndian.Uint32(txIdxbuf[:])
+	txIdx := binary.LittleEndian.Uint32(txIdxbuf)
 
 	// next: parse scriptSig
 
-	var sequencebuf [32]byte
-	_, err = txHex.Read(sequencebuf[:])
+	//var sequencebuf [32]byte
+	sequencebuf := make([]byte, 32)
+	_, err = txHex.Read(sequencebuf)
 	if err != nil {
 		fmt.Println("error parsing tx input: ", err)
 		return nil
 	}
-	sequence := binary.LittleEndian.Uint32(sequencebuf[:])
+	sequence := binary.LittleEndian.Uint32(sequencebuf)
 
 	return &TxIn{prevTxId: prevTx, prevTxIdx: txIdx, scriptSig: nil, sequence: sequence}
 }
 
-func reversePrevTxInId(prevTx [32]byte) [32]byte {
+func reversePrevTxInId(prevTx []byte) [32]byte {
 	var reversed [32]byte
 	counter := 31
 	for i := 0; i < 32; i++ {
@@ -141,13 +145,14 @@ type TxOut struct {
 
 func parseTxOut(txHex io.Reader) *TxOut {
 	// parse amount (# is in satoshis) - amount is in little endian stored in 8 bytes
-	var amountbuf [8]byte
-	_, err := txHex.Read(amountbuf[:])
+	//var amountbuf [8]byte
+	amountbuf := make([]byte, 8)
+	_, err := txHex.Read(amountbuf)
 	if err != nil {
 		fmt.Println("error parsing tx output: ", err)
 		return nil
 	}
-	amount := binary.LittleEndian.Uint64(amountbuf[:])
+	amount := binary.LittleEndian.Uint64(amountbuf)
 
 	// parse scriptPubKey i.e Script
 
