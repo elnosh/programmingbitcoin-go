@@ -11,6 +11,11 @@ type Script struct {
 	cmds [][]byte
 }
 
+// combine scripts (scriptPubKey + scriptSig) for evaluation
+func (sc Script) combine(script [][]byte) *Script {
+
+}
+
 func parse(script []byte) *Script {
 	scriptbuf := bytes.NewBuffer(script)
 
