@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
+	"math/big"
 )
 
 type Script struct {
@@ -13,7 +15,8 @@ type Script struct {
 
 // combine scripts (scriptPubKey + scriptSig) for evaluation
 func (sc Script) combine(script [][]byte) *Script {
-
+	scriptBytes := append(sc.cmds, script...)
+	return &Script{cmds: scriptBytes}
 }
 
 func parse(script []byte) *Script {
@@ -111,6 +114,75 @@ func (sc Script) serialize() []byte {
 		fmt.Println(err)
 	}
 	return bytes.Join([][]byte{encodedLen, result}, []byte{})
+}
+
+// z - signature
+func (sc Script) evaluate(z *big.Int) (bool, error) {
+	cmds := make([][]byte, len(sc.cmds))
+	copy(cmds, sc.cmds)
+
+	stack := [][]byte{}
+	altStack := [][]byte{}
+
+	for len(cmds) > 0 {
+		cmd := pop(cmds)
+		opcodeType, ok := isOpcode(cmd)
+		if ok {
+			cmdByte := byte(cmd[0])
+			if opcodeType == "opcode" {
+				instruction := opcodesFuncs[cmdByte]
+				if !instruction(stack) {
+					return false, fmt.Errorf("bad op: %v\n", opcodesNames[cmdByte])
+				}
+			} else if opcodeType == "opConditional" {
+				instruction := opcodesConditionals[cmdByte]
+				if !instruction(stack, cmds) {
+					return false, fmt.Errorf("bad op: %v\n", opcodesNames[cmdByte])
+				}
+			} else if opcodeType == "opStack" {
+				instruction := opcodesAltStack[cmdByte]
+				if !instruction(stack, altStack) {
+					return false, fmt.Errorf("bad op: %v\n", opcodesNames[cmdByte])
+				}
+			} else { // if not any of previous, then is op signature
+				instruction := opcodesSignature[cmdByte]
+				if !instruction(stack, z) {
+					return false, fmt.Errorf("bad op: %v\n", opcodesNames[cmdByte])
+				}
+			}
+		} else { // if cmd is not an opcode, then append data to stack
+			stack = append(stack, cmd)
+		}
+	}
+
+	if len(stack) == 0 || pop(stack) == nil {
+		return false, errors.New("invalid signature")
+	}
+
+	return true, nil
+}
+
+func isOpcode(cmd []byte) (string, bool) {
+	if len(cmd) == 1 {
+		cmdByte := byte(cmd[0])
+		_, ok := opcodesFuncs[cmdByte]
+		if ok {
+			return "opcode", true
+		}
+		_, ok = opcodesConditionals[cmdByte]
+		if ok {
+			return "opConditional", true
+		}
+		_, ok = opcodesAltStack[cmdByte]
+		if ok {
+			return "opStack", true
+		}
+		_, ok = opcodesSignature[cmdByte]
+		if ok {
+			return "opSignature", true
+		}
+	}
+	return "", false
 }
 
 func readNextBytes(rd io.Reader, buf []byte) {

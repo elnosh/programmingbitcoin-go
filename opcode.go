@@ -4,13 +4,14 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"fmt"
+	"math/big"
 
 	"golang.org/x/crypto/ripemd160"
 )
 
 //var opcodeFuncs map[byte]interface{}
 
-var opcodeFuncs map[byte]func([][]byte) bool = map[byte]func([][]byte) bool{
+var opcodesFuncs map[byte]func([][]byte) bool = map[byte]func([][]byte) bool{
 	0x00: opcode0,
 	0x4f: opcode1Negate,
 	0x51: opcode1,
@@ -62,7 +63,7 @@ var opcodeFuncs map[byte]func([][]byte) bool = map[byte]func([][]byte) bool{
 	0xaa: opcodeHash256,
 }
 
-var opcodesConditionals map[byte]func([][]byte, []byte) bool = map[byte]func([][]byte, []byte) bool{
+var opcodesConditionals map[byte]func([][]byte, [][]byte) bool = map[byte]func([][]byte, [][]byte) bool{
 	0x63: opcodeIf,
 	0x64: opcodeNotIf,
 }
@@ -70,6 +71,70 @@ var opcodesConditionals map[byte]func([][]byte, []byte) bool = map[byte]func([][
 var opcodesAltStack map[byte]func([][]byte, [][]byte) bool = map[byte]func([][]byte, [][]byte) bool{
 	0x6b: opcodeToAltStack,
 	0x6c: opcodeFromAltStack,
+}
+
+var opcodesSignature map[byte]func([][]byte, *big.Int) bool = map[byte]func([][]byte, *big.Int) bool{}
+
+var opcodesNames map[byte]string = map[byte]string{
+	0x00: "OP_0",
+	0x4c: "OP_PUSHDATA1",
+	0x4d: "OP_PUSHDATA2",
+	0x4e: "OP_PUSHDATA4",
+	0x4f: "OP_1NEGATE",
+	0x51: "OP_1",
+	0x52: "OP_2",
+	0x53: "OP_3",
+	0x54: "OP_4",
+	0x55: "OP_5",
+	0x56: "OP_6",
+	0x57: "OP_7",
+	0x58: "OP_8",
+	0x59: "OP_9",
+	0x5a: "OP_10",
+	0x5b: "OP_11",
+	0x5c: "OP_12",
+	0x5d: "OP_13",
+	0x5e: "OP_14",
+	0x5f: "OP_15",
+	0x60: "OP_16",
+	0x61: "OP_NOP",
+	0x63: "OP_IF",
+	0x64: "OP_NOTIF",
+	0x69: "OP_VERIFY",
+	0x6a: "OP_RETURN",
+
+	// stack
+	0x6b: "OP_TOALTSTACK",
+	0x6c: "OP_FROMALTSTACK",
+	0x6d: "OP_2DROP",
+	0x6e: "OP_2DUP",
+	0x6f: "OP_3DUP",
+	0x70: "OP_2OVER",
+	0x71: "OP_2ROT",
+	//0x72: "OP_2SWAP", // not implemented
+	0x73: "OP_IFDUP",
+	0x74: "OP_DEPTH",
+	0x75: "OP_DROP",
+	0x76: "OP_DUP",
+	0x77: "OP_NIP",
+	0x78: "OP_OVER",
+	0x79: "OP_PICK",
+	//0x7a: "OP_ROLL", // not implemented
+	//0x7b: "OP_ROT", // not implemented
+	0x7c: "OP_SWAP",
+	0x7d: "OP_TUCK",
+
+	0x82: "OP_SIZE",
+	0x87: "OP_EQUAL",
+	0x88: "OP_EQUALVERIFY",
+	// missing arithmetic opcoded
+
+	// crypto opcodes
+	0xa6: "OP_RIPEMD160",
+	0xa7: "OP_SHA1",
+	0xa8: "OP_SHA256",
+	0xa9: "OP_HASH160",
+	0xaa: "OP_HASH256",
 }
 
 func encodeNum(num int) []byte {
@@ -240,11 +305,11 @@ func opcodeNop(stack [][]byte) bool {
 	return true
 }
 
-func opcodeIf(stack [][]byte, items []byte) bool {
+func opcodeIf(stack [][]byte, items [][]byte) bool {
 	if len(stack) < 1 {
 		return false
 	}
-	trueItems, falseItems := []byte{}, []byte{}
+	trueItems, falseItems := [][]byte{}, [][]byte{}
 	currentArr := trueItems
 	found := false
 	endifsNeeded := 1
@@ -253,12 +318,13 @@ func opcodeIf(stack [][]byte, items []byte) bool {
 		item := items[0]
 		items = append(items[:0], items[1:]...)
 
-		if item == 99 || item == 100 {
+		ilen := len(item)
+		if ilen == 1 && item[0] == 0x63 || item[0] == 0x64 {
 			endifsNeeded++
 			currentArr = append(currentArr, item)
-		} else if endifsNeeded == 1 && item == 103 {
+		} else if ilen == 1 && endifsNeeded == 1 && item[0] == 0x67 { // 0x67 = OP_ELSE
 			currentArr = falseItems
-		} else if item == 104 {
+		} else if ilen == 1 && item[0] == 0x68 { // 0x68 = OP_ENDIF
 			if endifsNeeded == 1 {
 				found = true
 				break
@@ -274,22 +340,21 @@ func opcodeIf(stack [][]byte, items []byte) bool {
 		return false
 	}
 
-	// element := stack[len(stack)-1]
-	// stack = stack[:len(stack)-1]
-	// if decodeNum(element) == 0 {
-	// 	items[:0] = falseItems
-	// } else {
-	// 	items[:0] = trueItems
-	// }
+	item := pop(stack)
+	if decodeNum(item) == 0 {
+		copy(items[:0], falseItems)
+	} else {
+		copy(items[:0], trueItems)
+	}
 
 	return true
 }
 
-func opcodeNotIf(stack [][]byte, items []byte) bool {
+func opcodeNotIf(stack [][]byte, items [][]byte) bool {
 	if len(stack) < 1 {
 		return false
 	}
-	trueItems, falseItems := []byte{}, []byte{}
+	trueItems, falseItems := [][]byte{}, [][]byte{}
 	currentArr := trueItems
 	found := false
 	endifsNeeded := 1
@@ -298,12 +363,13 @@ func opcodeNotIf(stack [][]byte, items []byte) bool {
 		item := items[0]
 		items = append(items[:0], items[1:]...)
 
-		if item == 99 || item == 100 {
+		ilen := len(item)
+		if ilen == 1 && item[0] == 0x63 || item[0] == 0x64 {
 			endifsNeeded++
 			currentArr = append(currentArr, item)
-		} else if endifsNeeded == 1 && item == 103 {
+		} else if ilen == 1 && endifsNeeded == 1 && item[0] == 0x67 { // 0x67 = OP_ELSE
 			currentArr = falseItems
-		} else if item == 104 {
+		} else if ilen == 1 && item[0] == 0x68 { // 0x68 = OP_ENDIF
 			if endifsNeeded == 1 {
 				found = true
 				break
@@ -319,13 +385,12 @@ func opcodeNotIf(stack [][]byte, items []byte) bool {
 		return false
 	}
 
-	// element := stack[len(stack)-1]
-	// stack = stack[:len(stack)-1]
-	// if decodeNum(element) == 0 {
-	// 	items[:0] = trueItems
-	// } else {
-	// 	items[:0] = falseItems
-	// }
+	item := pop(stack)
+	if decodeNum(item) == 0 {
+		copy(items[:0], trueItems)
+	} else {
+		copy(items[:0], falseItems)
+	}
 
 	return true
 }
