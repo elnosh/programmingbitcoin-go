@@ -9,9 +9,7 @@ import (
 	"golang.org/x/crypto/ripemd160"
 )
 
-//var opcodeFuncs map[byte]interface{}
-
-var opcodesFuncs map[byte]func([][]byte) bool = map[byte]func([][]byte) bool{
+var opcodesFuncs map[byte]func([][]byte) (bool, [][]byte) = map[byte]func([][]byte) (bool, [][]byte){
 	0x00: opcode0,
 	0x4f: opcode1Negate,
 	0x51: opcode1,
@@ -53,7 +51,10 @@ var opcodesFuncs map[byte]func([][]byte) bool = map[byte]func([][]byte) bool{
 	0x82: opcodeSize,
 	0x87: opcodeEqual,
 	0x88: opcodeEqualVerify,
+
 	// missing arithmetic opcoded
+	0x93: opcodeAdd,
+	0x95: opcodeMul,
 
 	// crypto opcodes
 	0xa6: opcodeRipemd160,
@@ -63,17 +64,19 @@ var opcodesFuncs map[byte]func([][]byte) bool = map[byte]func([][]byte) bool{
 	0xaa: opcodeHash256,
 }
 
-var opcodesConditionals map[byte]func([][]byte, [][]byte) bool = map[byte]func([][]byte, [][]byte) bool{
+var opcodesConditionals map[byte]func([][]byte, [][]byte) (bool, [][]byte, [][]byte) = map[byte]func([][]byte, [][]byte) (bool, [][]byte, [][]byte){
 	0x63: opcodeIf,
 	0x64: opcodeNotIf,
 }
 
-var opcodesAltStack map[byte]func([][]byte, [][]byte) bool = map[byte]func([][]byte, [][]byte) bool{
+var opcodesAltStack map[byte]func([][]byte, [][]byte) (bool, [][]byte, [][]byte) = map[byte]func([][]byte, [][]byte) (bool, [][]byte, [][]byte){
 	0x6b: opcodeToAltStack,
 	0x6c: opcodeFromAltStack,
 }
 
-var opcodesSignature map[byte]func([][]byte, *big.Int) bool = map[byte]func([][]byte, *big.Int) bool{}
+var opcodesSignature map[byte]func([][]byte, *big.Int) (bool, [][]byte) = map[byte]func([][]byte, *big.Int) (bool, [][]byte){
+	0xac: opcodeChecksig,
+}
 
 var opcodesNames map[byte]string = map[byte]string{
 	0x00: "OP_0",
@@ -127,7 +130,10 @@ var opcodesNames map[byte]string = map[byte]string{
 	0x82: "OP_SIZE",
 	0x87: "OP_EQUAL",
 	0x88: "OP_EQUALVERIFY",
+
 	// missing arithmetic opcoded
+	0x93: "OP_ADD",
+	0x95: "OP_MUL",
 
 	// crypto opcodes
 	0xa6: "OP_RIPEMD160",
@@ -205,109 +211,109 @@ func reverse(element []byte) []byte {
 	return reversed
 }
 
-func pop(stack [][]byte) []byte {
+func pop(stack [][]byte) ([]byte, [][]byte) {
 	top := stack[len(stack)-1]
 	stack = stack[:len(stack)-1]
-	return top
+	return top, stack
 }
 
-func opcode0(stack [][]byte) bool {
+func opcode0(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(0))
-	return true
+	return true, stack
 }
 
-func opcode1Negate(stack [][]byte) bool {
+func opcode1Negate(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(-1))
-	return true
+	return true, stack
 }
 
-func opcode1(stack [][]byte) bool {
+func opcode1(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(1))
-	return true
+	return true, stack
 }
 
-func opcode2(stack [][]byte) bool {
+func opcode2(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(2))
-	return true
+	return true, stack
 }
 
-func opcode3(stack [][]byte) bool {
+func opcode3(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(3))
-	return true
+	return true, stack
 }
 
-func opcode4(stack [][]byte) bool {
+func opcode4(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(4))
-	return true
+	return true, stack
 }
 
-func opcode5(stack [][]byte) bool {
+func opcode5(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(5))
-	return true
+	return true, stack
 }
 
-func opcode6(stack [][]byte) bool {
+func opcode6(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(6))
-	return true
+	return true, stack
 }
 
-func opcode7(stack [][]byte) bool {
+func opcode7(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(7))
-	return true
+	return true, stack
 }
 
-func opcode8(stack [][]byte) bool {
+func opcode8(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(8))
-	return true
+	return true, stack
 }
 
-func opcode9(stack [][]byte) bool {
+func opcode9(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(9))
-	return true
+	return true, stack
 }
 
-func opcode10(stack [][]byte) bool {
+func opcode10(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(10))
-	return true
+	return true, stack
 }
 
-func opcode11(stack [][]byte) bool {
+func opcode11(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(11))
-	return true
+	return true, stack
 }
 
-func opcode12(stack [][]byte) bool {
+func opcode12(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(12))
-	return true
+	return true, stack
 }
 
-func opcode13(stack [][]byte) bool {
+func opcode13(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(13))
-	return true
+	return true, stack
 }
 
-func opcode14(stack [][]byte) bool {
+func opcode14(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(14))
-	return true
+	return true, stack
 }
 
-func opcode15(stack [][]byte) bool {
+func opcode15(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(15))
-	return true
+	return true, stack
 }
 
-func opcode16(stack [][]byte) bool {
+func opcode16(stack [][]byte) (bool, [][]byte) {
 	stack = append(stack, encodeNum(16))
-	return true
+	return true, stack
 }
 
-func opcodeNop(stack [][]byte) bool {
-	return true
+func opcodeNop(stack [][]byte) (bool, [][]byte) {
+	return true, stack
 }
 
-func opcodeIf(stack [][]byte, items [][]byte) bool {
+func opcodeIf(stack [][]byte, items [][]byte) (bool, [][]byte, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack, items
 	}
 	trueItems, falseItems := [][]byte{}, [][]byte{}
 	currentArr := trueItems
@@ -337,22 +343,22 @@ func opcodeIf(stack [][]byte, items [][]byte) bool {
 		}
 	}
 	if !found {
-		return false
+		return false, stack, items
 	}
 
-	item := pop(stack)
+	item, stack := pop(stack)
 	if decodeNum(item) == 0 {
 		copy(items[:0], falseItems)
 	} else {
 		copy(items[:0], trueItems)
 	}
 
-	return true
+	return true, stack, items
 }
 
-func opcodeNotIf(stack [][]byte, items [][]byte) bool {
+func opcodeNotIf(stack [][]byte, items [][]byte) (bool, [][]byte, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack, items
 	}
 	trueItems, falseItems := [][]byte{}, [][]byte{}
 	currentArr := trueItems
@@ -382,92 +388,92 @@ func opcodeNotIf(stack [][]byte, items [][]byte) bool {
 		}
 	}
 	if !found {
-		return false
+		return false, stack, items
 	}
 
-	item := pop(stack)
+	item, stack := pop(stack)
 	if decodeNum(item) == 0 {
 		copy(items[:0], trueItems)
 	} else {
 		copy(items[:0], falseItems)
 	}
 
-	return true
+	return true, stack, items
 }
 
-func opcodeVerify(stack [][]byte) bool {
+func opcodeVerify(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack
 	}
-	item := pop(stack)
+	item, stack := pop(stack)
 	if decodeNum(item) == 0 {
-		return false
+		return false, stack
 	}
-	return true
+	return true, stack
 }
 
-func opcodeReturn(stack [][]byte) bool {
-	return false
+func opcodeReturn(stack [][]byte) (bool, [][]byte) {
+	return false, stack
 }
 
-func opcodeToAltStack(stack, altStack [][]byte) bool {
+func opcodeToAltStack(stack, altStack [][]byte) (bool, [][]byte, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack, altStack
 	}
-	item := pop(stack)
+	item, stack := pop(stack)
 	altStack = append(altStack, item)
-	return true
+	return true, stack, altStack
 }
 
-func opcodeFromAltStack(stack, altStack [][]byte) bool {
+func opcodeFromAltStack(stack, altStack [][]byte) (bool, [][]byte, [][]byte) {
 	if len(altStack) < 1 {
-		return false
+		return false, stack, altStack
 	}
-	item := pop(altStack)
+	item, stack := pop(altStack)
 	stack = append(stack, item)
-	return true
+	return true, stack, altStack
 }
 
-func opcode2Drop(stack [][]byte) bool {
+func opcode2Drop(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 2 {
-		return false
+		return false, stack
 	}
 	stack = stack[:len(stack)-2]
-	return true
+	return true, stack
 }
 
-func opcode2Dup(stack [][]byte) bool {
+func opcode2Dup(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 2 {
-		return false
+		return false, stack
 	}
 	stack = append(stack, stack[len(stack)-2:]...)
-	return true
+	return true, stack
 }
 
-func opcode3Dup(stack [][]byte) bool {
+func opcode3Dup(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 3 {
-		return false
+		return false, stack
 	}
 	stack = append(stack, stack[len(stack)-3:]...)
-	return true
+	return true, stack
 }
 
-func opcode2Over(stack [][]byte) bool {
+func opcode2Over(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 4 {
-		return false
+		return false, stack
 	}
 	stacklen := len(stack)
 	stack = append(stack, stack[stacklen-4:stacklen-2]...)
-	return true
+	return true, stack
 }
 
-func opcode2Rot(stack [][]byte) bool {
+func opcode2Rot(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 6 {
-		return false
+		return false, stack
 	}
 	stacklen := len(stack)
 	stack = append(stack, stack[stacklen-6:stacklen-4]...)
-	return true
+	return true, stack
 }
 
 // func opcode2Swap(stack [][]byte) bool {
@@ -482,169 +488,220 @@ func opcode2Rot(stack [][]byte) bool {
 // 	return true
 // }
 
-func opcodeIfDup(stack [][]byte) bool {
+func opcodeIfDup(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack
 	}
 	top := stack[len(stack)-1]
 	if decodeNum(top) != 0 {
 		stack = append(stack, stack[len(stack)-1])
 	}
-	return true
+	return true, stack
 }
 
-func opcodeDepth(stack [][]byte) bool {
+func opcodeDepth(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack
 	}
 	stack = append(stack, encodeNum(len(stack)))
-	return true
+	return true, stack
 }
 
-func opcodeDrop(stack [][]byte) bool {
+func opcodeDrop(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack
 	}
 	stack = stack[:len(stack)-1]
-	return true
+	return true, stack
 }
 
-func opcodeDup(stack [][]byte) bool {
+func opcodeDup(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack
 	}
 	stack = append(stack, stack[len(stack)-1])
-	return true
+	return true, stack
 }
 
-func opcodeNip(stack [][]byte) bool {
+func opcodeNip(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 2 {
-		return false
+		return false, stack
 	}
 	stack[len(stack)-2] = stack[len(stack)-1]
 	stack = stack[:len(stack)-1]
-	return true
+	return true, stack
 }
 
-func opcodeOver(stack [][]byte) bool {
+func opcodeOver(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 2 {
-		return false
+		return false, stack
 	}
 	stack = append(stack, stack[len(stack)-2])
-	return true
+	return true, stack
 }
 
-func opcodePick(stack [][]byte) bool {
+func opcodePick(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack
 	}
 	n := decodeNum(stack[len(stack)-1])
 	if len(stack) < n+1 {
-		return false
+		return false, stack
 	}
 	stack = append(stack, stack[len(stack)-n-1])
-	return true
+	return true, stack
 }
 
 // TODO: func opcodeRoll(stack [][]byte) bool {}
 
 // TODO: func opcodeRot(stack [][]byte) bool {}
 
-func opcodeSwap(stack [][]byte) bool {
+func opcodeSwap(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 2 {
-		return false
+		return false, stack
 	}
 	stack[len(stack)-1], stack[len(stack)-2] = stack[len(stack)-2], stack[len(stack)-1]
-	return true
+	return true, stack
 }
 
-func opcodeTuck(stack [][]byte) bool {
+func opcodeTuck(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 2 {
-		return false
+		return false, stack
 	}
 	top := stack[len(stack)-1]
 	stack = append(stack[:len(stack)-2], stack[len(stack)-2])
 	stack[len(stack)-2] = top
-	return true
+	return true, stack
 }
 
-func opcodeSize(stack [][]byte) bool {
+func opcodeSize(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return true
+		return true, stack
 	}
 	stack = append(stack, encodeNum(len(stack[len(stack)-1])))
-	return true
+	return true, stack
 }
 
-func opcodeEqual(stack [][]byte) bool {
+func opcodeEqual(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 2 {
-		return false
+		return false, stack
 	}
 
-	item1 := pop(stack)
-	item2 := pop(stack)
+	item1, stack := pop(stack)
+	item2, stack := pop(stack)
 	if decodeNum(item1) == decodeNum(item2) {
-		return true
+		stack = append(stack, encodeNum(1))
+	} else {
+		stack = append(stack, encodeNum(0))
 	}
-	return false
+	return true, stack
 }
 
-func opcodeEqualVerify(stack [][]byte) bool {
-	return opcodeEqual(stack) && opcodeVerify(stack)
+func opcodeEqualVerify(stack [][]byte) (bool, [][]byte) {
+	equal, stack := opcodeEqual(stack)
+	verify, stack := opcodeVerify(stack)
+	return (equal && verify), stack
+}
+
+func opcodeAdd(stack [][]byte) (bool, [][]byte) {
+	if len(stack) < 2 {
+		return false, stack
+	}
+
+	item1, stack := pop(stack)
+	item2, stack := pop(stack)
+	i1, i2 := decodeNum(item1), decodeNum(item2)
+	stack = append(stack, encodeNum(i1+i2))
+	return true, stack
+}
+
+func opcodeMul(stack [][]byte) (bool, [][]byte) {
+	if len(stack) < 2 {
+		return false, stack
+	}
+
+	item1, stack := pop(stack)
+	item2, stack := pop(stack)
+	i1, i2 := decodeNum(item1), decodeNum(item2)
+	stack = append(stack, encodeNum(i1*i2))
+	return true, stack
 }
 
 // TODO - all arithmetic opcodes
 
-func opcodeRipemd160(stack [][]byte) bool {
+func opcodeRipemd160(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack
 	}
-	item := pop(stack)
+	item, stack := pop(stack)
 	r160 := ripemd160.New()
 	_, err := r160.Write(item)
 	if err != nil {
 		fmt.Printf("error ripemd160 hash: %v\n", err)
 	}
 	stack = append(stack, r160.Sum(nil))
-	return true
+	return true, stack
 }
 
-func opcodeSha1(stack [][]byte) bool {
+func opcodeSha1(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack
 	}
-	item := pop(stack)
+	item, stack := pop(stack)
 	hash := sha1.Sum(item)
 	stack = append(stack, hash[:])
-	return true
+	return true, stack
 }
 
-func opcodeSha256(stack [][]byte) bool {
+func opcodeSha256(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack
 	}
-	item := pop(stack)
+	item, stack := pop(stack)
 	hash := sha256.Sum256(item)
 	stack = append(stack, hash[:])
-	return true
+	return true, stack
 }
 
-func opcodeHash160(stack [][]byte) bool {
+func opcodeHash160(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack
 	}
-	item := pop(stack)
+	item, stack := pop(stack)
 	hash := hash160(item)
 	stack = append(stack, hash[:])
-	return true
+	return true, stack
 }
 
-func opcodeHash256(stack [][]byte) bool {
+func opcodeHash256(stack [][]byte) (bool, [][]byte) {
 	if len(stack) < 1 {
-		return false
+		return false, stack
 	}
-	item := pop(stack)
+	item, stack := pop(stack)
 	hash := hash160(item)
 	stack = append(stack, hash[:])
-	return true
+	return true, stack
+}
+
+func opcodeChecksig(stack [][]byte, z *big.Int) (bool, [][]byte) {
+	if len(stack) < 2 {
+		return false, stack
+	}
+	pubKey, stack := pop(stack)
+	pubKeyPoint := parsePubKey(pubKey)
+
+	signature, stack := pop(stack)
+	sig, err := parseSignature(signature)
+	if err != nil {
+		fmt.Println("invalid signature: ", err)
+		return false, stack
+	}
+
+	if !pubKeyPoint.verifySignature(*sig, z) {
+		stack = append(stack, encodeNum(0))
+		return false, stack
+	}
+
+	stack = append(stack, encodeNum(1))
+	return true, stack
 }

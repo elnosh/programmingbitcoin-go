@@ -14,12 +14,21 @@ type Script struct {
 }
 
 // combine scripts (scriptPubKey + scriptSig) for evaluation
-func (sc Script) combine(script [][]byte) *Script {
-	scriptBytes := append(sc.cmds, script...)
+func (sc Script) combine(script *Script) *Script {
+	scriptBytes := make([][]byte, len(sc.cmds)+len(script.cmds))
+	count := 0
+	for i := len(script.cmds) - 1; i >= 0; i-- {
+		scriptBytes[count] = script.cmds[i]
+		count++
+	}
+	for i := len(sc.cmds) - 1; i >= 0; i-- {
+		scriptBytes[count] = sc.cmds[i]
+		count++
+	}
 	return &Script{cmds: scriptBytes}
 }
 
-func parse(script []byte) *Script {
+func parseScript(script []byte) *Script {
 	scriptbuf := bytes.NewBuffer(script)
 
 	var cmds [][]byte
@@ -32,6 +41,7 @@ func parse(script []byte) *Script {
 	for count < scriptLength {
 		curbuf := make([]byte, 1)
 		readNextBytes(scriptbuf, curbuf)
+		count++
 
 		cur := curbuf[0]
 		if cur >= 1 && cur <= 75 {
@@ -62,10 +72,11 @@ func parse(script []byte) *Script {
 			readNextBytes(scriptbuf, element)
 			// append element read
 			cmds = append(cmds, element)
-			count += int(length)
+			count = count + int(length) + 2
 		} else { // else next byte is an opcode
 			opcode := curbuf
 			cmds = append(cmds, opcode)
+			fmt.Println("appended opcode fine")
 		}
 	}
 	if count != scriptLength {
@@ -121,33 +132,41 @@ func (sc Script) evaluate(z *big.Int) (bool, error) {
 	cmds := make([][]byte, len(sc.cmds))
 	copy(cmds, sc.cmds)
 
+	var eval bool
 	stack := [][]byte{}
 	altStack := [][]byte{}
+	items := [][]byte{}
+
+	var cmd []byte
 
 	for len(cmds) > 0 {
-		cmd := pop(cmds)
+		cmd, cmds = pop(cmds)
 		opcodeType, ok := isOpcode(cmd)
 		if ok {
 			cmdByte := byte(cmd[0])
 			if opcodeType == "opcode" {
 				instruction := opcodesFuncs[cmdByte]
-				if !instruction(stack) {
-					return false, fmt.Errorf("bad op: %v\n", opcodesNames[cmdByte])
+				eval, stack = instruction(stack)
+				if !eval {
+					return false, fmt.Errorf("bad op: %v", opcodesNames[cmdByte])
 				}
 			} else if opcodeType == "opConditional" {
 				instruction := opcodesConditionals[cmdByte]
-				if !instruction(stack, cmds) {
-					return false, fmt.Errorf("bad op: %v\n", opcodesNames[cmdByte])
+				eval, stack, items = instruction(stack, items)
+				if !eval {
+					return false, fmt.Errorf("bad op: %v", opcodesNames[cmdByte])
 				}
 			} else if opcodeType == "opStack" {
 				instruction := opcodesAltStack[cmdByte]
-				if !instruction(stack, altStack) {
-					return false, fmt.Errorf("bad op: %v\n", opcodesNames[cmdByte])
+				eval, stack, altStack = instruction(stack, altStack)
+				if !eval {
+					return false, fmt.Errorf("bad op: %v", opcodesNames[cmdByte])
 				}
 			} else { // if not any of previous, then is op signature
 				instruction := opcodesSignature[cmdByte]
-				if !instruction(stack, z) {
-					return false, fmt.Errorf("bad op: %v\n", opcodesNames[cmdByte])
+				eval, stack = instruction(stack, z)
+				if !eval {
+					return false, fmt.Errorf("bad op: %v", opcodesNames[cmdByte])
 				}
 			}
 		} else { // if cmd is not an opcode, then append data to stack
@@ -155,7 +174,7 @@ func (sc Script) evaluate(z *big.Int) (bool, error) {
 		}
 	}
 
-	if len(stack) == 0 || pop(stack) == nil {
+	if len(stack) == 0 || stack[0] == nil {
 		return false, errors.New("invalid signature")
 	}
 
@@ -189,5 +208,6 @@ func readNextBytes(rd io.Reader, buf []byte) {
 	_, err := rd.Read(buf)
 	if err != nil {
 		fmt.Println("error reading script: ", err)
+		return
 	}
 }
