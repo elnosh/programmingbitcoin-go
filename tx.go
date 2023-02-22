@@ -68,6 +68,18 @@ func (tx Tx) serialize() []byte {
 	return []byte{}
 }
 
+func sigHash() {
+}
+
+// TODO: calculate fee -> sum(inputs) - sum(outputs)
+// use fetch from TxFetcher to get value of tx in
+// func (tx Tx) fee() {
+// 	inputSum, outputSum := 0, 0
+
+// 	for _, input := range tx.txIns {
+// 	}
+// }
+
 // transaction input
 type TxIn struct {
 	prevTxId  [32]byte // hash of previous referenced transaction

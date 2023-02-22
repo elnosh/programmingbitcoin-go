@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 )
@@ -111,6 +112,13 @@ func (e FieldElement) div(divisor FieldElement) *FieldElement {
 	return &FieldElement{num: num, prime: e.prime}
 }
 
+func (e FieldElement) sqrt() *FieldElement {
+	exp := new(big.Int).Set(prime256).Add(prime256, big.NewInt(1))
+	exp.Div(exp, big.NewInt(4))
+
+	return e.pow(exp)
+}
+
 func (e FieldElement) repr() {
 	fmt.Printf("FieldElement_%f (%f)\n", e.prime, e.num)
 }
@@ -155,6 +163,12 @@ func newS256Point(x, y *big.Int) *Point {
 	xp := newS256FieldElement(x)
 	yp := newS256FieldElement(y)
 	return newPoint(*xp, *yp, *a, *b)
+}
+
+func newS256PointF(x, y FieldElement) *Point {
+	a := newS256FieldElement(big.NewInt(0))
+	b := newS256FieldElement(big.NewInt(7))
+	return newPoint(x, y, *a, *b)
 }
 
 var (
@@ -305,35 +319,37 @@ func (p Point) sec(compressed bool) []byte {
 	return bytes.Join([][]byte{prefixbuf, xbuf}, []byte{})
 }
 
-func (p Point) parse(sec_arr []byte) *Point {
-	prefix := int(sec_arr[0])
+func parsePubKey(secPubKey []byte) *Point {
+	prefix := int(secPubKey[0])
 	if prefix == 4 {
-		x := new(big.Int).SetBytes(sec_arr[1:33])
-		y := new(big.Int).SetBytes(sec_arr[33:])
+		x := new(big.Int).SetBytes(secPubKey[1:33])
+		y := new(big.Int).SetBytes(secPubKey[33:])
 		return newS256Point(x, y)
 	}
 
-	x := new(big.Int).SetBytes(sec_arr[1:])
+	x := newS256FieldElement(new(big.Int).SetBytes(secPubKey[1:]))
 	isEven := prefix == 2
 
 	// y^2 = x^3 + 7
-	powr := new(big.Int).Set(x).Exp(x, big.NewInt(3), nil)
-	right := powr.Add(powr, big.NewInt(7))
-	left := sqrt(right)
+	powr := x.pow(big.NewInt(3))
+	b := newS256FieldElement(big.NewInt(7))
+	right := powr.add(*b)
 
-	var even_left, odd_left *big.Int
-	if new(big.Int).Set(left).Mod(left, big.NewInt(2)).Sign() == 0 {
-		even_left = left
-		odd_left = new(big.Int).Set(prime256).Sub(prime256, left)
+	left := right.sqrt()
+
+	var even_left, odd_left FieldElement
+	if new(big.Int).Set(left.num).Mod(left.num, big.NewInt(2)).Sign() == 0 {
+		even_left = *left
+		odd_left = *newS256FieldElement(new(big.Int).Set(prime256).Sub(prime256, left.num))
 	} else {
-		even_left = new(big.Int).Set(prime256).Sub(prime256, left)
-		odd_left = left
+		even_left = *newS256FieldElement(new(big.Int).Set(prime256).Sub(prime256, left.num))
+		odd_left = *left
 	}
 
 	if isEven {
-		return newS256Point(x, even_left)
+		return newS256PointF(*x, even_left)
 	} else {
-		return newS256Point(x, odd_left)
+		return newS256PointF(*x, odd_left)
 	}
 }
 
@@ -355,14 +371,6 @@ func (p Point) address(compressed, testnet bool) string {
 	return base58encodeChecksum(pkhash)
 }
 
-func sqrt(num *big.Int) *big.Int {
-	exp := new(big.Int).Set(prime256).Add(prime256, big.NewInt(1))
-	exp.Div(exp, big.NewInt(4))
-
-	result := new(big.Int).Set(num).Exp(num, exp, nil)
-	return result
-}
-
 func (p Point) repr() string {
 	if isInf(p.x) && isInf(p.y) {
 		return fmt.Sprintf("Point(infinity, infinity)_%d_%d FieldElement(%d)\n", p.a.num, p.b.num, p.a.prime)
@@ -376,7 +384,7 @@ type Signature struct {
 }
 
 func (s Signature) repr() {
-	fmt.Printf("Signature(%d, %d)\n", s.r, s.s)
+	fmt.Printf("Signature(%x, %x)\n", s.r, s.s)
 }
 
 // Distinguished Encoding Rules format
@@ -401,6 +409,68 @@ func (s Signature) der() []byte {
 	marker = []byte{0x30}
 	reslen := []byte{byte(len(result))}
 	return bytes.Join([][]byte{marker, reslen, result}, []byte{})
+}
+
+func parseSignature(signature []byte) (*Signature, error) {
+	signatureBuf := bytes.NewBuffer(signature)
+
+	idx := 0
+	if signature[idx] != 0x30 {
+		return nil, errors.New("Bad Signature")
+	}
+	idx++
+	signatureBuf.Next(1)
+
+	siglen := int(signature[idx])
+	if siglen+2 != len(signature) {
+		return nil, errors.New("Bad signature length 1")
+	}
+	idx++
+	signatureBuf.Next(1)
+
+	marker := signature[idx]
+	if marker != 0x02 {
+		return nil, errors.New("Bad signature: no marker")
+	}
+	idx++
+	signatureBuf.Next(1)
+
+	rlength := int(signature[idx])
+	signatureBuf.Next(1)
+	rbytes := make([]byte, rlength)
+	_, err := signatureBuf.Read(rbytes)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing R in signature: %v\n", err)
+	}
+	idx = idx + rlength + 1
+	r := new(big.Int).SetBytes(rbytes)
+
+	marker = signature[idx]
+	if marker != 0x02 {
+		return nil, errors.New("Bad signature: no marker")
+	}
+	idx++
+	signatureBuf.Next(1)
+
+	slength := int(signature[idx])
+	signatureBuf.Next(1)
+	sbytes := make([]byte, slength)
+	_, err = signatureBuf.Read(sbytes)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing S in signature: %v\n", err)
+	}
+	idx = idx + slength + 1
+	s := new(big.Int).SetBytes(sbytes)
+
+	if len(signature) != rlength+slength+6 {
+		return nil, errors.New("Bad signature length 2")
+	}
+
+	// if len(signature)-1 != idx {
+	// 	return nil, errors.New("Bad signature length 2")
+	// }
+
+	return &Signature{r: r, s: s}, nil
 }
 
 type PrivateKey struct {
