@@ -18,10 +18,15 @@ type Tx struct {
 }
 
 // hex of tx hash
-func (tx Tx) id() {}
+// func (tx Tx) id() []byte {
+// 	return tx.hash()
+// }
 
 // binary hash of legacy serialization
-func (tx Tx) hash() {}
+func (tx Tx) id() []byte {
+	hash := hash256(tx.serialize())
+	return reverse(hash[:])
+}
 
 func parseTx(s []byte) *Tx {
 	sbuf := bytes.NewBuffer(s)
@@ -46,7 +51,6 @@ func parseTx(s []byte) *Tx {
 	if err != nil {
 		fmt.Println("error reading output varint: ", err)
 	}
-	fmt.Printf("output num = %v\n", numOutputs)
 
 	var outputs []TxOut
 	for i := 0; i < numOutputs; i++ {
@@ -62,10 +66,24 @@ func parseTx(s []byte) *Tx {
 	return &Tx{version: version, txIns: inputs, txOuts: outputs, locktime: locktime}
 }
 
-// TODO
 func (tx Tx) serialize() []byte {
+	var version []byte
+	binary.LittleEndian.PutUint32(version, tx.version)
 
-	return []byte{}
+	var txIns []byte
+	for _, tx := range tx.txIns {
+		txIns = append(txIns, tx.serialize()...)
+	}
+
+	var txOuts []byte
+	for _, tx := range tx.txOuts {
+		txOuts = append(txOuts, tx.serialize()...)
+	}
+
+	var locktime []byte
+	binary.LittleEndian.PutUint32(locktime, tx.locktime)
+
+	return bytes.Join([][]byte{version, txIns, txOuts, locktime}, []byte{})
 }
 
 func sigHash() {
@@ -78,20 +96,23 @@ func sigHash() {
 
 // 	for _, input := range tx.txIns {
 // 	}
+
+// 	for _, output := range tx.txOuts {
+// 	}
 // }
 
 // transaction input
 type TxIn struct {
 	prevTxId  [32]byte // hash of previous referenced transaction
 	prevTxIdx uint32   // index of output from referenced transaction
-	scriptSig []byte   // unlocking script
+	scriptSig *Script
 	sequence  uint32
 }
 
-func newTxIn(prevTx [32]byte, prevTxIdx uint32, scriptSig []byte, sequence uint32) *TxIn {
-	var script []byte
+func newTxIn(prevTx [32]byte, prevTxIdx uint32, scriptSig *Script, sequence uint32) *TxIn {
+	var script *Script
 	if scriptSig == nil {
-		script = []byte{}
+		script = &Script{}
 	} else {
 		script = scriptSig
 	}
@@ -100,18 +121,16 @@ func newTxIn(prevTx [32]byte, prevTxIdx uint32, scriptSig []byte, sequence uint3
 }
 
 func parseTxIn(txHex io.Reader) *TxIn {
-	//var tx [32]byte
 	tx := make([]byte, 32)
-
 	_, err := txHex.Read(tx)
 	if err != nil {
 		fmt.Println("error parsing tx input: ", err)
 		return nil
 	}
+
 	// reversing because incoming prev tx hash is in little endian
 	prevTx := reversePrevTxInId(tx)
 
-	//var txIdxbuf [4]byte
 	txIdxbuf := make([]byte, 4)
 	_, err = txHex.Read(txIdxbuf)
 	if err != nil {
@@ -120,10 +139,12 @@ func parseTxIn(txHex io.Reader) *TxIn {
 	}
 	txIdx := binary.LittleEndian.Uint32(txIdxbuf)
 
-	// next: parse scriptSig
+	scriptSig, err := parseScript(txHex)
+	if err != nil {
+		fmt.Println("error parsing scriptSig: ", err)
+	}
 
-	//var sequencebuf [32]byte
-	sequencebuf := make([]byte, 32)
+	sequencebuf := make([]byte, 4)
 	_, err = txHex.Read(sequencebuf)
 	if err != nil {
 		fmt.Println("error parsing tx input: ", err)
@@ -131,7 +152,7 @@ func parseTxIn(txHex io.Reader) *TxIn {
 	}
 	sequence := binary.LittleEndian.Uint32(sequencebuf)
 
-	return &TxIn{prevTxId: prevTx, prevTxIdx: txIdx, scriptSig: nil, sequence: sequence}
+	return &TxIn{prevTxId: prevTx, prevTxIdx: txIdx, scriptSig: scriptSig, sequence: sequence}
 }
 
 func reversePrevTxInId(prevTx []byte) [32]byte {
@@ -144,20 +165,32 @@ func reversePrevTxInId(prevTx []byte) [32]byte {
 	return reversed
 }
 
-// TODO
 func (tx TxIn) serialize() []byte {
+	prevTxId := reversePrevTxInId(tx.prevTxId[:])
 
-	return []byte{}
+	var prevTxIdx []byte
+	binary.LittleEndian.PutUint32(prevTxIdx, tx.prevTxIdx)
+
+	scriptSig := tx.scriptSig.serialize()
+
+	var sequence []byte
+	binary.LittleEndian.PutUint32(sequence, tx.sequence)
+
+	return bytes.Join([][]byte{prevTxId[:], prevTxIdx, scriptSig, sequence}, []byte{})
+}
+
+// TODO
+func fetchTx(testnet bool) {
+
 }
 
 type TxOut struct {
-	value        uint64 // amount in satoshis being transferred
-	scriptPubKey []byte // locking script
+	value        uint64  // amount in satoshis being transferred
+	scriptPubKey *Script // locking script
 }
 
 func parseTxOut(txHex io.Reader) *TxOut {
 	// parse amount (# is in satoshis) - amount is in little endian stored in 8 bytes
-	//var amountbuf [8]byte
 	amountbuf := make([]byte, 8)
 	_, err := txHex.Read(amountbuf)
 	if err != nil {
@@ -166,28 +199,27 @@ func parseTxOut(txHex io.Reader) *TxOut {
 	}
 	amount := binary.LittleEndian.Uint64(amountbuf)
 
-	// parse scriptPubKey i.e Script
+	scriptPubKey, err := parseScript(txHex)
+	if err != nil {
+		fmt.Println("error parsing scriptPubKey: ", err)
+	}
 
-	return &TxOut{value: amount}
+	return &TxOut{value: amount, scriptPubKey: scriptPubKey}
 }
 
 func (tx TxOut) serialize() []byte {
 	var amount []byte
 	binary.LittleEndian.PutUint64(amount, tx.value)
 
-	//TODO: serialize scripPubKey
-
-	// add serialized scriptPubKey to return value
-	return bytes.Join([][]byte{amount}, []byte{})
+	script := tx.serialize()
+	return bytes.Join([][]byte{amount, script}, []byte{})
 }
-
-//var cache map[string]Tx
 
 type TxFetcher struct {
 	cache map[string]*Tx
 }
 
-func (f TxFetcher) fetch(txId string, testnet bool) *Tx {
+func (f TxFetcher) fetch(txId string, testnet bool) (*Tx, error) {
 	// get correct url
 	url := "https://blockstream.info/api/"
 	if testnet {
@@ -200,15 +232,13 @@ func (f TxFetcher) fetch(txId string, testnet bool) *Tx {
 		url += "tx/" + txId + "/hex"
 		resp, err := http.Get(url)
 		if err != nil {
-			fmt.Printf("error fetching transaction: %v\n", err)
-			return nil
+			return nil, err
 		}
 		defer resp.Body.Close()
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			fmt.Printf("error reading transaction body: %v\n", err)
-			return nil
+			return nil, err
 		}
 
 		var tx *Tx
@@ -220,12 +250,14 @@ func (f TxFetcher) fetch(txId string, testnet bool) *Tx {
 			tx = parseTx(body)
 		}
 
-		// compare id from tx fetched and id passed as arg
-		// tx.id != txId
+		tid := string(tx.id())
+		if tid != txId {
+			return nil, fmt.Errorf("transaction ids do not match: %v and %v\n", tid, txId)
+		}
 
 		f.cache[txId] = tx
 	}
 	f.cache[txId].testnet = testnet
-	return f.cache[txId]
+	return f.cache[txId], nil
 
 }

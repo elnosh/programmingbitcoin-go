@@ -423,7 +423,7 @@ func parseSignature(signature []byte) (*Signature, error) {
 
 	siglen := int(signature[idx])
 	if siglen+2 != len(signature) {
-		return nil, errors.New("Bad signature length 1")
+		return nil, errors.New("Bad signature length")
 	}
 	idx++
 	signatureBuf.Next(1)
@@ -463,12 +463,8 @@ func parseSignature(signature []byte) (*Signature, error) {
 	s := new(big.Int).SetBytes(sbytes)
 
 	if len(signature) != rlength+slength+6 {
-		return nil, errors.New("Bad signature length 2")
+		return nil, errors.New("Bad signature length")
 	}
-
-	// if len(signature)-1 != idx {
-	// 	return nil, errors.New("Bad signature length 2")
-	// }
 
 	return &Signature{r: r, s: s}, nil
 }

@@ -28,62 +28,61 @@ func (sc Script) combine(script *Script) *Script {
 	return &Script{cmds: scriptBytes}
 }
 
-func parseScript(script []byte) *Script {
-	scriptbuf := bytes.NewBuffer(script)
-
+func parseScript(script io.Reader) (*Script, error) {
 	var cmds [][]byte
 	count := 0
-	scriptLength, err := readVarint(scriptbuf)
+	scriptLength, err := readVarint(script)
 	if err != nil {
-		fmt.Println("error reading script length: ", err)
+		return nil, err
 	}
 
 	for count < scriptLength {
 		curbuf := make([]byte, 1)
-		readNextBytes(scriptbuf, curbuf)
-		count++
+		readNextBytes(script, curbuf)
+		count += 1
 
 		cur := curbuf[0]
 		if cur >= 1 && cur <= 75 {
-			n := cur
+			n := int(cur)
 			element := make([]byte, n)
-			readNextBytes(scriptbuf, element)
+			readNextBytes(script, element)
 			cmds = append(cmds, element)
-			count += int(n)
+			count += n
 		} else if cur == 76 { // 76 == opcode for OP_PUSHDATA1
 			// read next byte, curbuf will be length of next element to read
-			readNextBytes(scriptbuf, curbuf)
+			readNextBytes(script, curbuf)
 
 			// create element buffer with length read from previous readNextBytes
 			element := make([]byte, curbuf[0])
-			readNextBytes(scriptbuf, element)
+			readNextBytes(script, element)
 			// append element read
 			cmds = append(cmds, element)
-			count += int(curbuf[0])
+			//count += int(curbuf[0])
+			count = count + int(curbuf[0]) + 1
 		} else if cur == 77 { // 77 == opcode for OP_PUSHDATA2
 			lengthArr := make([]byte, 2)
 			// read next byte, curbuf will be length of next element to read
-			readNextBytes(scriptbuf, lengthArr)
+			readNextBytes(script, lengthArr)
 			// convert length from little endian byte slice to uint16
 			length := binary.LittleEndian.Uint16(lengthArr)
 
 			// create element buffer with length read from previous readNextBytes
 			element := make([]byte, length)
-			readNextBytes(scriptbuf, element)
+			readNextBytes(script, element)
 			// append element read
 			cmds = append(cmds, element)
 			count = count + int(length) + 2
 		} else { // else next byte is an opcode
 			opcode := curbuf
 			cmds = append(cmds, opcode)
-			fmt.Println("appended opcode fine")
 		}
 	}
+
 	if count != scriptLength {
-		fmt.Println("error parsing script")
+		return nil, fmt.Errorf("parsing script failed")
 	}
 
-	return &Script{cmds: cmds}
+	return &Script{cmds: cmds}, nil
 }
 
 func (sc Script) rawSerialize() []byte {

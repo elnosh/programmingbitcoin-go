@@ -69,7 +69,6 @@ func fromHex(s string) *big.Int {
 }
 
 func readVarint(varint io.Reader) (int, error) {
-	//varintbuf := bytes.NewBuffer(varint)
 	var numbuf []byte
 	i := make([]byte, 1)
 	_, err := varint.Read(i)
@@ -129,4 +128,14 @@ func encodeVarint(num int) ([]byte, error) {
 		return nil, errors.New("error encoding varint: integer too large")
 	}
 	return encodedRes, nil
+}
+
+func reverse(element []byte) []byte {
+	reversed := make([]byte, len(element))
+	counter := len(element) - 1
+	for i := 0; i < len(element); i++ {
+		reversed[i] = element[counter]
+		counter--
+	}
+	return reversed
 }

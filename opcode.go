@@ -52,7 +52,7 @@ var opcodesFuncs map[byte]func([][]byte) (bool, [][]byte) = map[byte]func([][]by
 	0x87: opcodeEqual,
 	0x88: opcodeEqualVerify,
 
-	// missing arithmetic opcoded
+	// missing arithmetic opcodes
 	0x93: opcodeAdd,
 	0x95: opcodeMul,
 
@@ -131,7 +131,7 @@ var opcodesNames map[byte]string = map[byte]string{
 	0x87: "OP_EQUAL",
 	0x88: "OP_EQUALVERIFY",
 
-	// missing arithmetic opcoded
+	// missing arithmetic opcodes
 	0x93: "OP_ADD",
 	0x95: "OP_MUL",
 
