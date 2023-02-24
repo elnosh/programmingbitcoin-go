@@ -201,16 +201,6 @@ func decodeNum(element []byte) int {
 	return result
 }
 
-func reverse(element []byte) []byte {
-	reversed := make([]byte, len(element))
-	counter := len(element) - 1
-	for i := 0; i < len(element); i++ {
-		reversed[i] = element[counter]
-		counter--
-	}
-	return reversed
-}
-
 func pop(stack [][]byte) ([]byte, [][]byte) {
 	top := stack[len(stack)-1]
 	stack = stack[:len(stack)-1]

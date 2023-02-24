@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,11 +17,6 @@ type Tx struct {
 	locktime uint32
 	testnet  bool
 }
-
-// hex of tx hash
-// func (tx Tx) id() []byte {
-// 	return tx.hash()
-// }
 
 // binary hash of legacy serialization
 func (tx Tx) id() []byte {
@@ -67,39 +63,51 @@ func parseTx(s []byte) *Tx {
 }
 
 func (tx Tx) serialize() []byte {
-	var version []byte
+	version := make([]byte, 4)
 	binary.LittleEndian.PutUint32(version, tx.version)
 
+	txInsLen, err := encodeVarint(len(tx.txIns))
+	if err != nil {
+		fmt.Println("error encoding length of tx inputs: ", err)
+	}
+
 	var txIns []byte
-	for _, tx := range tx.txIns {
-		txIns = append(txIns, tx.serialize()...)
+	for _, txIn := range tx.txIns {
+		txIns = append(txIns, txIn.serialize()...)
+	}
+
+	txOutsLen, err := encodeVarint(len(tx.txOuts))
+	if err != nil {
+		fmt.Println("error encoding length of tx outputs: ", err)
 	}
 
 	var txOuts []byte
-	for _, tx := range tx.txOuts {
-		txOuts = append(txOuts, tx.serialize()...)
+	for _, txOut := range tx.txOuts {
+		txOuts = append(txOuts, txOut.serialize()...)
 	}
 
-	var locktime []byte
+	locktime := make([]byte, 4)
 	binary.LittleEndian.PutUint32(locktime, tx.locktime)
 
-	return bytes.Join([][]byte{version, txIns, txOuts, locktime}, []byte{})
+	return bytes.Join([][]byte{version, txInsLen, txIns, txOutsLen, txOuts, locktime}, []byte{})
 }
 
 func sigHash() {
 }
 
-// TODO: calculate fee -> sum(inputs) - sum(outputs)
-// use fetch from TxFetcher to get value of tx in
-// func (tx Tx) fee() {
-// 	inputSum, outputSum := 0, 0
+// fee = sum(inputs) - sum(outputs)
+func (tx Tx) fee(testnet bool) uint64 {
+	var inputSum, outputSum uint64
 
-// 	for _, input := range tx.txIns {
-// 	}
+	for _, input := range tx.txIns {
+		inputSum += input.value(testnet)
+	}
 
-// 	for _, output := range tx.txOuts {
-// 	}
-// }
+	for _, output := range tx.txOuts {
+		outputSum += output.value
+	}
+	return inputSum - outputSum
+}
 
 // transaction input
 type TxIn struct {
@@ -168,20 +176,33 @@ func reversePrevTxInId(prevTx []byte) [32]byte {
 func (tx TxIn) serialize() []byte {
 	prevTxId := reversePrevTxInId(tx.prevTxId[:])
 
-	var prevTxIdx []byte
+	prevTxIdx := make([]byte, 4)
 	binary.LittleEndian.PutUint32(prevTxIdx, tx.prevTxIdx)
 
 	scriptSig := tx.scriptSig.serialize()
 
-	var sequence []byte
+	sequence := make([]byte, 4)
 	binary.LittleEndian.PutUint32(sequence, tx.sequence)
 
 	return bytes.Join([][]byte{prevTxId[:], prevTxIdx, scriptSig, sequence}, []byte{})
 }
 
-// TODO
-func fetchTx(testnet bool) {
+func (tx TxIn) fetchTx(testnet bool) *Tx {
+	t, err := fetch(hex.EncodeToString(tx.prevTxId[:]), testnet)
+	if err != nil {
+		fmt.Println("error fetching transaction: ", err)
+	}
+	return t
+}
 
+func (tx TxIn) value(testnet bool) uint64 {
+	t := tx.fetchTx(testnet)
+	return t.txOuts[tx.prevTxIdx].value
+}
+
+func (tx TxIn) scriptPubKey(testnet bool) *Script {
+	t := tx.fetchTx(testnet)
+	return t.txOuts[tx.prevTxIdx].scriptPubKey
 }
 
 type TxOut struct {
@@ -208,18 +229,20 @@ func parseTxOut(txHex io.Reader) *TxOut {
 }
 
 func (tx TxOut) serialize() []byte {
-	var amount []byte
+	amount := make([]byte, 8)
 	binary.LittleEndian.PutUint64(amount, tx.value)
 
-	script := tx.serialize()
+	script := tx.scriptPubKey.serialize()
 	return bytes.Join([][]byte{amount, script}, []byte{})
 }
 
-type TxFetcher struct {
-	cache map[string]*Tx
-}
+// type TxFetcher struct {
+// 	cache map[string]*Tx
+// }
 
-func (f TxFetcher) fetch(txId string, testnet bool) (*Tx, error) {
+var txCache map[string]*Tx
+
+func fetch(txId string, testnet bool) (*Tx, error) {
 	// get correct url
 	url := "https://blockstream.info/api/"
 	if testnet {
@@ -227,7 +250,7 @@ func (f TxFetcher) fetch(txId string, testnet bool) (*Tx, error) {
 	}
 
 	// if tx is not in cache, fetch it
-	_, ok := f.cache[txId]
+	_, ok := txCache[txId]
 	if !ok {
 		url += "tx/" + txId + "/hex"
 		resp, err := http.Get(url)
@@ -255,9 +278,8 @@ func (f TxFetcher) fetch(txId string, testnet bool) (*Tx, error) {
 			return nil, fmt.Errorf("transaction ids do not match: %v and %v\n", tid, txId)
 		}
 
-		f.cache[txId] = tx
+		txCache[txId] = tx
 	}
-	f.cache[txId].testnet = testnet
-	return f.cache[txId], nil
-
+	txCache[txId].testnet = testnet
+	return txCache[txId], nil
 }
