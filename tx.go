@@ -92,8 +92,17 @@ func (tx Tx) serialize() []byte {
 	return bytes.Join([][]byte{version, txInsLen, txIns, txOutsLen, txOuts, locktime}, []byte{})
 }
 
-func sigHash() {
-}
+// func (tx Tx) sigHash(inputIdx int) *big.Int {
+// 	version := make([]byte, 4)
+// 	binary.LittleEndian.PutUint32(version, tx.version)
+
+// 	txInsLen, err := encodeVarint(len(tx.txIns))
+// 	if err != nil {
+// 		fmt.Println("error encoding length of tx inputs: ", err)
+// 	}
+
+// 	return big.NewInt(0)
+// }
 
 // fee = sum(inputs) - sum(outputs)
 func (tx Tx) fee(testnet bool) uint64 {
@@ -240,7 +249,7 @@ func (tx TxOut) serialize() []byte {
 // 	cache map[string]*Tx
 // }
 
-var txCache map[string]*Tx
+var txCache map[string]*Tx = map[string]*Tx{}
 
 func fetch(txId string, testnet bool) (*Tx, error) {
 	// get correct url
@@ -264,18 +273,24 @@ func fetch(txId string, testnet bool) (*Tx, error) {
 			return nil, err
 		}
 
+		decodedBody := make([]byte, hex.DecodedLen(len(body)))
+		n, err := hex.Decode(decodedBody, body)
+		if err != nil {
+			return nil, fmt.Errorf("error getting transaction: %v", err)
+		}
+
 		var tx *Tx
-		if body[4] == 0 {
-			body = append(body[:4], body[6:]...)
+		if decodedBody[4] == 0 {
+			body = append(decodedBody[:4], decodedBody[6:]...)
 			tx = parseTx(body)
 			binary.LittleEndian.PutUint32(body[len(body)-4:], tx.locktime)
 		} else {
-			tx = parseTx(body)
+			tx = parseTx(decodedBody[:n])
 		}
 
-		tid := string(tx.id())
+		tid := hex.EncodeToString(tx.id())
 		if tid != txId {
-			return nil, fmt.Errorf("transaction ids do not match: %v and %v\n", tid, txId)
+			return nil, fmt.Errorf("transaction ids do not match: %v and %v", tid, txId)
 		}
 
 		txCache[txId] = tx
