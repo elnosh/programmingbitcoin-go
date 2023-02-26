@@ -131,3 +131,13 @@ func TestFee(t *testing.T) {
 		}
 	}
 }
+
+func TestSigHash(t *testing.T) {
+	tx, err := fetch("452c629d67e41baec3ac6f04fe744b4b9617f8f859c63b3002f8684e7a4fee03", false)
+	if err != nil {
+		t.Error("error fetching transaction")
+	}
+
+	want := fromHex("27e0c5994dec7824e56dec6b2fcb342eb7cdb0d0957c2fce9882f715e85d81a6")
+	assert.Equal(t, want, tx.sigHash(0), "signature hash does not match")
+}

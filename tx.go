@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 )
 
@@ -92,17 +93,95 @@ func (tx Tx) serialize() []byte {
 	return bytes.Join([][]byte{version, txInsLen, txIns, txOutsLen, txOuts, locktime}, []byte{})
 }
 
-// func (tx Tx) sigHash(inputIdx int) *big.Int {
-// 	version := make([]byte, 4)
-// 	binary.LittleEndian.PutUint32(version, tx.version)
+func (tx Tx) sigHash(inputIdx uint32) *big.Int {
+	version := make([]byte, 4)
+	binary.LittleEndian.PutUint32(version, tx.version)
 
-// 	txInsLen, err := encodeVarint(len(tx.txIns))
-// 	if err != nil {
-// 		fmt.Println("error encoding length of tx inputs: ", err)
-// 	}
+	txInsLen, err := encodeVarint(len(tx.txIns))
+	if err != nil {
+		fmt.Println("error encoding length of tx inputs: ", err)
+	}
 
-// 	return big.NewInt(0)
-// }
+	var txInput []byte
+	for i, txIn := range tx.txIns {
+		if int(inputIdx) == i {
+			modifiedTxIn := newTxIn(txIn.prevTxId, txIn.prevTxIdx, txIn.scriptPubKey(tx.testnet), txIn.sequence)
+			txInput = append(txInput, modifiedTxIn.serialize()...)
+		} else {
+			modifiedTxIn := newTxIn(txIn.prevTxId, txIn.prevTxIdx, nil, txIn.sequence)
+			txInput = append(txInput, modifiedTxIn.serialize()...)
+		}
+	}
+
+	txOutsLen, err := encodeVarint(len(tx.txOuts))
+	if err != nil {
+		fmt.Println("error encoding length of tx outputs: ", err)
+	}
+
+	var txOutput []byte
+	for _, txOut := range tx.txOuts {
+		txOutput = append(txOutput, txOut.serialize()...)
+	}
+
+	locktime := make([]byte, 4)
+	binary.LittleEndian.PutUint32(locktime, tx.locktime)
+
+	hashType := make([]byte, 4)
+	binary.LittleEndian.PutUint32(hashType, SIGHASH_ALL)
+
+	modifiedTxBytes := bytes.Join([][]byte{version, txInsLen, txInput, txOutsLen, txOutput, locktime, hashType}, []byte{})
+
+	signatureHash := hash256(modifiedTxBytes)
+
+	return new(big.Int).SetBytes(signatureHash[:])
+}
+
+func (tx Tx) verifyInput(inputIdx uint32) bool {
+	txIn := tx.txIns[inputIdx]
+	script := txIn.scriptSig.combine(txIn.scriptPubKey(tx.testnet))
+	z := tx.sigHash(inputIdx)
+	valid, err := script.evaluate(z)
+	if err != nil {
+		fmt.Printf("error evaluating script: %v\n", err)
+	}
+	return valid
+}
+
+func (tx Tx) verifyTransaction() bool {
+	// this is not here but while verifying a transaction, it should also
+	// check for double spends (check if the tx is in the UTXO set)
+
+	if tx.fee(tx.testnet) < 0 {
+		return false
+	}
+	for i := range tx.txIns {
+		if !tx.verifyInput(uint32(i)) {
+			return false
+		}
+	}
+	return true
+}
+
+func (tx Tx) signInput(inputIdx uint32, privKey *PrivateKey) bool {
+	// get the signature hash (z)
+	z := tx.sigHash(inputIdx)
+
+	// sign z with private key
+	sig := privKey.sign(z).der()
+	hashType := make([]byte, 4)
+	binary.LittleEndian.PutUint32(hashType, SIGHASH_ALL)
+
+	// signature is the der signature + hash type
+	sig = append(sig, hashType...)
+
+	sec := privKey.point.sec(true)
+	scriptSig := &Script{cmds: [][]byte{sig, sec}}
+
+	tx.txIns[inputIdx].scriptSig = scriptSig
+
+	// verify tx input signed is valid
+	return tx.verifyInput(inputIdx)
+}
 
 // fee = sum(inputs) - sum(outputs)
 func (tx Tx) fee(testnet bool) uint64 {

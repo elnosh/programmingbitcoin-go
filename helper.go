@@ -5,14 +5,19 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
+	"strings"
 
 	"golang.org/x/crypto/ripemd160"
 )
 
 const (
 	Base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+	SIGHASH_ALL    = 1
+	SIGHASH_NONE   = 2
+	SIGHASH_SINGLE = 3
 )
 
 // do two rounds of sha256
@@ -55,6 +60,25 @@ func base58encodeChecksum(input []byte) string {
 	firstFour := sha[:4]
 	inp := bytes.Join([][]byte{input, firstFour}, []byte{})
 	return base58encode(inp)
+}
+
+func base58Decode(base58address string) ([]byte, error) {
+	num := big.NewInt(0)
+
+	for _, char := range base58address {
+		num.Mul(num, big.NewInt(58))
+		charIdx := strings.Index(Base58Alphabet, string(char))
+		num.Add(num, big.NewInt(int64(charIdx)))
+	}
+	combined := num.Bytes()
+	checksum := combined[len(combined)-4:]
+	hash := hash256(combined[:len(combined)-4])
+
+	if !bytes.Equal(hash[:4], checksum) {
+		return nil, fmt.Errorf("bad address: checksum does not match '%v' '%v'", checksum, hash[:4])
+	}
+
+	return combined[1 : len(combined)-4], nil
 }
 
 func fromHex(s string) *big.Int {

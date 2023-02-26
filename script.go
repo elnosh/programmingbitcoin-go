@@ -9,11 +9,17 @@ import (
 	"math/big"
 )
 
+func p2pkhScript(hash []byte) *Script {
+	return &Script{
+		cmds: [][]byte{{0x76}, {0xa9}, hash, {0x88}, {0xac}},
+	}
+}
+
 type Script struct {
 	cmds [][]byte
 }
 
-// combine scripts (scriptPubKey + scriptSig) for evaluation
+// combine scripts (scriptSig + scriptPubKey) for evaluation
 func (sc Script) combine(script *Script) *Script {
 	scriptBytes := make([][]byte, len(sc.cmds)+len(script.cmds))
 	count := 0
@@ -126,7 +132,7 @@ func (sc Script) serialize() []byte {
 	return bytes.Join([][]byte{encodedLen, result}, []byte{})
 }
 
-// z - signature
+// z - signature hash
 func (sc Script) evaluate(z *big.Int) (bool, error) {
 	cmds := make([][]byte, len(sc.cmds))
 	copy(cmds, sc.cmds)
