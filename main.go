@@ -1,16 +1,44 @@
 package main
 
+import (
+	"encoding/hex"
+	"fmt"
+)
+
 func main() {
-	// prevTx, _ := hex.DecodeString("0d6fe5213c0b3291f208cba8bfb59b7476dffacc4e5cb66f6eb20a080843a299")
-	// var prevTxId [32]byte
-	// copy(prevTxId[:], prevTx)
+	secret := fromHex("")
+	privKey := newPrivateKey(secret)
+	fmt.Println(privKey.point.address(true, true))
 
-	// var prevIdx uint32 = 13
+	var txIns []TxIn
+	txId, _ := hex.DecodeString("")
+	var prevTxId [32]byte
+	copy(prevTxId[:], txId)
+	var prevTxIdx uint32 = 1
 
-	// txIn := newTxIn(prevTxId, prevIdx, nil, 0xfffffffe)
+	txIn := newTxIn(prevTxId, prevTxIdx, nil, 0xfffffffe)
+	txIns = append(txIns, *txIn)
 
-	// changeAmount := uint64(0.33 * 100000000)
-	// changeRecipient, _ := base58Decode("")
-	// changeScript := p2pkhScript(changeRecipient)
+	var txOuts []TxOut
 
+	var destAmount uint64
+	destAddrHash, err := base58Decode("")
+	if err != nil {
+		fmt.Println(err)
+	}
+	destScriptPubKey := p2pkhScript(destAddrHash)
+	destTxOut := TxOut{value: destAmount, scriptPubKey: destScriptPubKey}
+	txOuts = append(txOuts, destTxOut)
+
+	var changeAmount uint64
+	changeAddrHash, err := base58Decode("")
+	if err != nil {
+		fmt.Println(err)
+	}
+	changeScriptPubKey := p2pkhScript(changeAddrHash)
+	changeTxOut := TxOut{value: changeAmount, scriptPubKey: changeScriptPubKey}
+	txOuts = append(txOuts, changeTxOut)
+
+	tx := &Tx{version: 1, txIns: txIns, txOuts: txOuts, locktime: 0, testnet: true}
+	fmt.Printf("tx hex = %v\n", hex.EncodeToString(tx.serialize()))
 }

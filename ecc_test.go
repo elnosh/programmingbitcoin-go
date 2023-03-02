@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNeFieldElement(t *testing.T) {
@@ -536,5 +538,35 @@ func TestSec(t *testing.T) {
 		if test.wantCompressed != compressed {
 			t.Errorf("expected '%v' but got '%v' instead\n", test.wantCompressed, compressed)
 		}
+	}
+}
+
+func TestSignatureDerParse(t *testing.T) {
+	lim1 := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
+	lim2 := new(big.Int).Exp(big.NewInt(2), big.NewInt(255), nil)
+
+	r1, _ := rand.Int(rand.Reader, lim1)
+	s1, _ := rand.Int(rand.Reader, lim2)
+	r2, _ := rand.Int(rand.Reader, lim1)
+	s2, _ := rand.Int(rand.Reader, lim2)
+
+	cases := []struct {
+		r *big.Int
+		s *big.Int
+	}{
+		{big.NewInt(1), big.NewInt(2)},
+		{r1, s1},
+		{r2, s2},
+	}
+
+	for _, test := range cases {
+		sig := &Signature{r: test.r, s: test.s}
+		der := sig.der()
+		sig2, err := parseSignature(der)
+		if err != nil {
+			t.Errorf("error parsing signature '%v'", err)
+		}
+		assert.Equal(t, test.r, sig2.r, "Signature.r does not match")
+		assert.Equal(t, test.s, sig2.s, "Signature.s does not match")
 	}
 }

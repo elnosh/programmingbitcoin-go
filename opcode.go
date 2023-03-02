@@ -683,7 +683,7 @@ func opcodeChecksig(stack [][]byte, z *big.Int) (bool, [][]byte) {
 	signature, stack := pop(stack)
 	sig, err := parseSignature(signature)
 	if err != nil {
-		fmt.Println("invalid signature: ", err)
+		fmt.Printf("invalid signature: %v\n", err)
 		return false, stack
 	}
 

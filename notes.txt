@@ -1,0 +1,48 @@
+
+# Creating a transaction
+
+// secret = big int which is private key
+privKey := newPrivateKey(secret)
+
+// list of inputs in the transaction
+var txIns []TxIn
+
+// prevTxId is id of tx being referenced that holds the utxo that will spent
+// prevTxIdx index of utxo in the tx being referenced - which output is being spent from transaction referenced
+txIn := newTxIn(prevTxId, prevTxIdx, nil, 0xfffffffe)
+
+// append txIn to list of inputs
+txIns = append(txIns, *txIn)
+
+// list of outputs
+var txOuts []TxOut
+
+// amount (in sats) that is being spent or transferred
+var destAmount 
+
+// destination address
+// mainnet - 1, 3, bc1
+// testnet - m, n, others...
+destAddrHash, err := base58Decode("")
+
+// generates p2pkh scriptPubKey
+destScriptPubKey := p2pkhScript(destAddrHash)
+
+// create txOut
+destTxOut := TxOut{value: destAmount, scriptPubKey: destScriptPubKey}
+
+// append txOut to list of outputs
+txOuts = append(txOuts, destTxOut)
+
+// other output
+var changeAmount 
+var changeAddrHash
+changeScriptPubKey := p2pkhScript(changeAddrHash)
+changeTxOut := TxOut{value: changeAmount, scriptPubKey: changeScriptPubKey}
+txOuts = append(txOuts, changeTxOut)
+
+// create transaction
+tx := &Tx{version: 1, txIns: txIns, txOuts: txOuts, locktime: 0, testnet: true}
+
+// sign input of transaction with signInput
+valid := tx.signInput(0, privKey)

@@ -9,6 +9,7 @@ import (
 	"math/big"
 )
 
+// takes in hashed public key and returns p2pkh scriptPubKey
 func p2pkhScript(hash []byte) *Script {
 	return &Script{
 		cmds: [][]byte{{0x76}, {0xa9}, hash, {0x88}, {0xac}},

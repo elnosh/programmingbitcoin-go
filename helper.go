@@ -57,8 +57,8 @@ func base58encode(input []byte) string {
 
 func base58encodeChecksum(input []byte) string {
 	sha := hash256(input)
-	firstFour := sha[:4]
-	inp := bytes.Join([][]byte{input, firstFour}, []byte{})
+	checksum := sha[:4]
+	inp := bytes.Join([][]byte{input, checksum}, []byte{})
 	return base58encode(inp)
 }
 

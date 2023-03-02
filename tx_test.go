@@ -141,3 +141,41 @@ func TestSigHash(t *testing.T) {
 	want := fromHex("27e0c5994dec7824e56dec6b2fcb342eb7cdb0d0957c2fce9882f715e85d81a6")
 	assert.Equal(t, want, tx.sigHash(0), "signature hash does not match")
 }
+
+// func TestVerifyP2PKH(t *testing.T) {
+// 	testCases := []struct {
+// 		txId    string
+// 		testnet bool
+// 		want    bool
+// 	}{
+// 		{"452c629d67e41baec3ac6f04fe744b4b9617f8f859c63b3002f8684e7a4fee03", false, true},
+// 		{"5418099cc755cb9dd3ebc6cf1a7888ad53a1a3beb5a025bce89eb1bf7f1650a2", true, true},
+// 	}
+
+// 	for _, test := range testCases {
+// 		tx, err := fetch(test.txId, test.testnet)
+// 		if err != nil {
+// 			t.Error("error fetching transaction")
+// 		}
+// 		verified := tx.verifyTransaction()
+// 		if verified != test.want {
+// 			t.Errorf("expected %v but got %v instead", test.want, verified)
+// 		}
+// 	}
+// }
+
+// func TestSignInput(t *testing.T) {
+// 	privKey := newPrivateKey(big.NewInt(8675309))
+// 	txHex, err := hex.DecodeString("010000000199a24308080ab26e6fb65c4eccfadf76749bb5bfa8cb08f291320b3c21e56f0d0d00000000ffffffff02408af701000000001976a914d52ad7ca9b3d096a38e752c2018e6fbc40cdf26f88ac80969800000000001976a914507b27411ccf7f16f10297de6cef3f291623eddf88ac00000000")
+// 	if err != nil {
+// 		t.Errorf("error decoding tx hex: %v\n", err)
+// 	}
+// 	tx := parseTx(txHex)
+// 	tx.testnet = true
+// 	assert.Equal(t, true, tx.signInput(0, privKey))
+
+// 	// want := "010000000199a24308080ab26e6fb65c4eccfadf76749bb5bfa8cb08f291320b3c21e56f0d0d0000006b4830450221008ed46aa2cf12d6d81065bfabe903670165b538f65ee9a3385e6327d80c66d3b502203124f804410527497329ec4715e18558082d489b218677bd029e7fa306a72236012103935581e52c354cd2f484fe8ed83af7a3097005b2f9c60bff71d35bd795f54b67ffffffff02408af701000000001976a914d52ad7ca9b3d096a38e752c2018e6fbc40cdf26f88ac80969800000000001976a914507b27411ccf7f16f10297de6cef3f291623eddf88ac00000000"
+// 	// txString := hex.EncodeToString(tx.serialize())
+
+// 	// assert.Equal(t, want, txString, "hex transactions do not match")
+// }
