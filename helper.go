@@ -81,6 +81,28 @@ func base58Decode(base58address string) ([]byte, error) {
 	return combined[1 : len(combined)-4], nil
 }
 
+func h160ToP2pkh(hash160 []byte, testnet bool) string {
+	var prefix []byte
+	if testnet {
+		prefix = []byte{0x6f}
+	} else {
+		prefix = []byte{0x00}
+	}
+	pkhash := bytes.Join([][]byte{prefix, hash160}, []byte{})
+	return base58encodeChecksum(pkhash)
+}
+
+func h160ToP2SH(hash160 []byte, testnet bool) string {
+	var prefix []byte
+	if testnet {
+		prefix = []byte{0xc4}
+	} else {
+		prefix = []byte{0x05}
+	}
+	scriptHash := bytes.Join([][]byte{prefix, hash160}, []byte{})
+	return base58encodeChecksum(scriptHash)
+}
+
 func fromHex(s string) *big.Int {
 	if s == "" {
 		return big.NewInt(0)
@@ -149,7 +171,7 @@ func encodeVarint(num int) ([]byte, error) {
 		encodedRes = bytes.Join([][]byte{prefix, varintbuf}, []byte{})
 	} else {
 		// err value too large
-		return nil, errors.New("error encoding varint: integer too large")
+		return nil, errors.New("integer too large")
 	}
 	return encodedRes, nil
 }

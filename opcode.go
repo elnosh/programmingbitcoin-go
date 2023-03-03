@@ -76,6 +76,7 @@ var opcodesAltStack map[byte]func([][]byte, [][]byte) (bool, [][]byte, [][]byte)
 
 var opcodesSignature map[byte]func([][]byte, *big.Int) (bool, [][]byte) = map[byte]func([][]byte, *big.Int) (bool, [][]byte){
 	0xac: opcodeChecksig,
+	0xae: opcodeCheckMultisig,
 }
 
 var opcodesNames map[byte]string = map[byte]string{
@@ -141,6 +142,9 @@ var opcodesNames map[byte]string = map[byte]string{
 	0xa8: "OP_SHA256",
 	0xa9: "OP_HASH160",
 	0xaa: "OP_HASH256",
+
+	0xac: "OP_CHECKSIG",
+	0xae: "OP_CHECKMULTISIG",
 }
 
 func encodeNum(num int) []byte {
@@ -694,4 +698,65 @@ func opcodeChecksig(stack [][]byte, z *big.Int) (bool, [][]byte) {
 
 	stack = append(stack, encodeNum(1))
 	return true, stack
+}
+
+func opcodeCheckMultisig(stack [][]byte, z *big.Int) (bool, [][]byte) {
+	if len(stack) < 1 {
+		return false, stack
+	}
+	// m-of-n multisig
+	nbyte, stack := pop(stack)
+	n := decodeNum(nbyte)
+	if len(stack) < n+1 {
+		return false, stack
+	}
+	pubKeys := make([]*Point, n)
+	var pubKey []byte
+	for i := n; i > 0; i-- {
+		pubKey, stack = pop(stack)
+		pubKeyPoint := parsePubKey(pubKey)
+		pubKeys = append(pubKeys, pubKeyPoint)
+	}
+
+	mbyte, stack := pop(stack)
+	m := decodeNum(mbyte)
+	if len(stack) < m+1 {
+		return false, stack
+	}
+	sigs := make([]*Signature, m)
+	var sigByte []byte
+	for i := 0; i < m; i++ {
+		sigByte, stack = pop(stack)
+		sig, err := parseSignature(sigByte)
+		if err != nil {
+			fmt.Printf("error parsing signature in multisig - '%v'\n", err)
+		}
+		sigs = append(sigs, sig)
+	}
+	// pop for bug of extra value unused
+	_, stack = pop(stack)
+
+	for _, sig := range sigs {
+		if len(pubKeys) < 1 {
+			stack = append(stack, encodeNum(0))
+			return false, stack
+		}
+
+		var pubKey *Point
+		for len(pubKeys) > 0 {
+			pubKey, pubKeys = popKey(pubKeys)
+			if pubKey.verifySignature(*sig, z) {
+				break
+			}
+		}
+	}
+
+	stack = append(stack, encodeNum(1))
+	return true, stack
+}
+
+func popKey(arr []*Point) (*Point, []*Point) {
+	key := arr[len(arr)-1]
+	arr = arr[:len(arr)-1]
+	return key, arr
 }

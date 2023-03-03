@@ -49,7 +49,8 @@ func parseScript(script io.Reader) (*Script, error) {
 		count += 1
 
 		cur := curbuf[0]
-		if cur >= 1 && cur <= 75 {
+		if cur >= 1 && cur <= 75 { // if byte between 0x01 and 0x4b (75)
+			// read next n as element (not opcode)
 			n := int(cur)
 			element := make([]byte, n)
 			readNextBytes(script, element)
@@ -177,6 +178,43 @@ func (sc Script) evaluate(z *big.Int) (bool, error) {
 			}
 		} else { // if cmd is not an opcode, then append data to stack
 			stack = append(stack, cmd)
+			if len(cmds) == 3 && cmds[0][0] == 0xa9 && len(cmds[1]) == 20 && cmds[2][0] == 0x87 { // check for p2sh
+				// this is OP_HASH160 - 0xa9
+				_, cmds = pop(cmds)
+
+				// this is the hash
+				var h160 []byte
+				h160, cmds = pop(cmds)
+
+				// this is OP_EQUAL - 0x87
+				_, cmds = pop(cmds)
+
+				var valid bool
+				if valid, stack = opcodeHash160(stack); !valid {
+					return false, fmt.Errorf("failed op: '%v'", opcodesNames[0xa9])
+				}
+				stack = append(stack, h160)
+				if valid, stack = opcodeEqual(stack); !valid {
+					return false, fmt.Errorf("failed op: '%v'", opcodesNames[0x87])
+				}
+
+				// there should be a 1 from opcodeEqual
+				if valid, stack = opcodeVerify(stack); !valid {
+					return false, fmt.Errorf("invalid p2sh hash160")
+				}
+
+				scriptLen, err := encodeVarint(len(cmd))
+				if err != nil {
+					return false, fmt.Errorf("error getting script length: '%v'", err)
+				}
+				redeemScriptBytes := bytes.Join([][]byte{scriptLen, cmd}, []byte{})
+				scriptBuf := bytes.NewBuffer(redeemScriptBytes)
+				redeemScript, err := parseScript(scriptBuf)
+				if err != nil {
+					return false, fmt.Errorf("invalid script: '%v'", err)
+				}
+				cmds = append(cmds, redeemScript.cmds...)
+			}
 		}
 	}
 

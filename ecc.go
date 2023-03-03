@@ -157,6 +157,7 @@ func newPoint(x, y, a, b FieldElement) *Point {
 	return p
 }
 
+// point for secp256k1 curve
 func newS256Point(x, y *big.Int) *Point {
 	a := newS256FieldElement(big.NewInt(0))
 	b := newS256FieldElement(big.NewInt(7))
@@ -171,6 +172,7 @@ func newS256PointF(x, y FieldElement) *Point {
 	return newPoint(x, y, *a, *b)
 }
 
+// generator point
 var (
 	gx *big.Int = fromHex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
 	gy *big.Int = fromHex("483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8")
@@ -294,7 +296,8 @@ func (p Point) verifySignature(s Signature, z *big.Int) bool {
 	return s.r.Cmp(sum.x.num) == 0
 }
 
-// Standards for Efficient Cryptography
+// SEC - Standards for Efficient Cryptography
+// serialize public key in sec format
 func (p Point) sec(compressed bool) []byte {
 	prefixbuf := make([]byte, 1)
 	xbuf := make([]byte, 32)
@@ -387,7 +390,8 @@ func (s Signature) repr() {
 	fmt.Printf("Signature(%x, %x)\n", s.r, s.s)
 }
 
-// Distinguished Encoding Rules format
+// DER - Distinguished Encoding Rules format
+// serialize signature
 func (s Signature) der() []byte {
 	prepfix := []byte{0x00}
 	marker := []byte{0x02}
@@ -479,6 +483,7 @@ func newPrivateKey(secret *big.Int) *PrivateKey {
 	return &PrivateKey{secret: secret, point: *publicKey}
 }
 
+// sign z with private key
 func (pp PrivateKey) sign(z *big.Int) *Signature {
 	zc := new(big.Int).Set(z)
 
