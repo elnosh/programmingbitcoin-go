@@ -101,6 +101,21 @@ func (tx Tx) serialize() []byte {
 	return bytes.Join([][]byte{version, txInsLen, txIns, txOutsLen, txOuts, locktime}, []byte{})
 }
 
+func (tx Tx) isCoinbase() bool {
+	idx, err := hex.DecodeString("ffffffff")
+	if err != nil {
+		fmt.Println("error getting previus tx index")
+		return false
+	}
+	prevTx := binary.BigEndian.Uint32(tx.txIns[0].prevTxId[:])
+	idxInt := binary.BigEndian.Uint32(idx)
+	if len(tx.txIns) == 1 && prevTx == 0 && idxInt == tx.txIns[0].prevTxIdx {
+		return true
+	}
+
+	return false
+}
+
 // gets signature hash
 func (tx Tx) sigHash(inputIdx uint32) *big.Int {
 	version := make([]byte, 4)
