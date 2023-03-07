@@ -1,15 +1,21 @@
 package main
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 )
 
 func main() {
-	script, _ := hex.DecodeString("4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73")
-	scriptBuf := bytes.NewBuffer(script)
+	b, _ := hex.DecodeString("020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d")
 
-	scriptSig, _ := parseScript(scriptBuf)
-	fmt.Printf("%s\n", scriptSig.cmds[2])
+	block := parseBlock(b)
+	fmt.Printf("hash = %x\n", block.id())
+	hashProof := new(big.Int).SetBytes(block.id())
+	fmt.Printf("targ = %x\n", block.target())
+	if hashProof.Cmp(block.target()) == -1 {
+		fmt.Println("hash is below target")
+	}
+
+	fmt.Println(block.difficulty())
 }
