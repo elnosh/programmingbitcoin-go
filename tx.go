@@ -116,6 +116,15 @@ func (tx Tx) isCoinbase() bool {
 	return false
 }
 
+func (tx Tx) coinbaseHeight() uint32 {
+	if !tx.isCoinbase() {
+		return 0
+	}
+	scriptSig := tx.txIns[0].scriptSig
+	height := scriptSig.cmds[0]
+	return binary.LittleEndian.Uint32(height)
+}
+
 // gets signature hash
 func (tx Tx) sigHash(inputIdx uint32) *big.Int {
 	version := make([]byte, 4)
@@ -247,15 +256,16 @@ func newTxIn(prevTx [32]byte, prevTxIdx uint32, scriptSig *Script, sequence uint
 
 func parseTxIn(txHex io.Reader) *TxIn {
 	// read 32 bytes - transactionId of previous tx
-	tx := make([]byte, 32)
-	_, err := txHex.Read(tx)
+	//tx := make([]byte, 32)
+	var tx [32]byte
+	_, err := txHex.Read(tx[:])
 	if err != nil {
 		fmt.Println("error parsing tx input: ", err)
 		return nil
 	}
 
 	// reversing because incoming prev tx hash is in little endian
-	prevTx := reversePrevTxInId(tx)
+	prevTx := reverseByteArr32(tx)
 
 	// 4 bytes for index of previous tx - utxo being spent
 	txIdxbuf := make([]byte, 4)
@@ -284,18 +294,8 @@ func parseTxIn(txHex io.Reader) *TxIn {
 	return &TxIn{prevTxId: prevTx, prevTxIdx: txIdx, scriptSig: scriptSig, sequence: sequence}
 }
 
-func reversePrevTxInId(prevTx []byte) [32]byte {
-	var reversed [32]byte
-	counter := 31
-	for i := 0; i < 32; i++ {
-		reversed[i] = prevTx[counter]
-		counter--
-	}
-	return reversed
-}
-
 func (tx TxIn) serialize() []byte {
-	prevTxId := reversePrevTxInId(tx.prevTxId[:])
+	prevTxId := reverseByteArr32(tx.prevTxId)
 
 	prevTxIdx := make([]byte, 4)
 	binary.LittleEndian.PutUint32(prevTxIdx, tx.prevTxIdx)

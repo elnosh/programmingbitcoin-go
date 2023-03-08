@@ -18,6 +18,7 @@ const (
 	SIGHASH_ALL    = 1
 	SIGHASH_NONE   = 2
 	SIGHASH_SINGLE = 3
+	TWO_WEEKS      = 60 * 60 * 24 * 14
 )
 
 // do two rounds of sha256
@@ -181,6 +182,16 @@ func reverse(element []byte) []byte {
 	counter := len(element) - 1
 	for i := 0; i < len(element); i++ {
 		reversed[i] = element[counter]
+		counter--
+	}
+	return reversed
+}
+
+func reverseByteArr32(byteArr [32]byte) [32]byte {
+	var reversed [32]byte
+	counter := 31
+	for i := 0; i < 32; i++ {
+		reversed[i] = byteArr[counter]
 		counter--
 	}
 	return reversed
