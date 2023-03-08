@@ -3,19 +3,16 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
-	"math/big"
 )
 
 func main() {
-	b, _ := hex.DecodeString("020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d")
+	firstBlockHex, _ := hex.DecodeString("000000203471101bbda3fe307664b3283a9ef0e97d9a38a7eacd8800000000000000000010c8aba8479bbaa5e0848152fd3c2289ca50e1c3e58c9a4faaafbdf5803c5448ddb845597e8b0118e43a81d3")
 
-	block := parseBlock(b)
-	fmt.Printf("hash = %x\n", block.id())
-	hashProof := new(big.Int).SetBytes(block.id())
-	fmt.Printf("targ = %x\n", block.target())
-	if hashProof.Cmp(block.target()) == -1 {
-		fmt.Println("hash is below target")
-	}
+	lastBlockHex, _ := hex.DecodeString("02000020f1472d9db4b563c35f97c428ac903f23b7fc055d1cfc26000000000000000000b3f449fcbe1bc4cfbcb8283a0d2c037f961a3fdf2b8bedc144973735eea707e1264258597e8b0118e5f00474")
 
-	fmt.Println(block.difficulty())
+	firstBlock := parseBlock(firstBlockHex)
+	lastBlock := parseBlock(lastBlockHex)
+
+	newBits := calculateNewBits(lastBlock.bits, lastBlock.timestamp-firstBlock.timestamp)
+	fmt.Printf("bits = %x\n", newBits)
 }

@@ -18,6 +18,7 @@ const (
 	SIGHASH_ALL    = 1
 	SIGHASH_NONE   = 2
 	SIGHASH_SINGLE = 3
+	TWO_WEEKS      = 60 * 60 * 24 * 14
 )
 
 // do two rounds of sha256
