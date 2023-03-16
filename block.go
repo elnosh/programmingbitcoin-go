@@ -57,14 +57,12 @@ func parseBlock(b []byte) *Block {
 	if err != nil {
 		fmt.Println("error getting block bits: ", err)
 	}
-	//bits := binary.BigEndian.Uint32(buf)
 
 	var nonce [4]byte
 	_, err = blockBuffer.Read(nonce[:])
 	if err != nil {
 		fmt.Println("error getting block nonce: ", err)
 	}
-	//nonce := binary.BigEndian.Uint32(buf)
 
 	return &Block{version: version, previousBlock: prevBlock, merkleRoot: merkleRoot, timestamp: timestamp, bits: bits, nonce: nonce}
 }
@@ -79,13 +77,8 @@ func (b Block) serialize() []byte {
 	timestamp := make([]byte, 4)
 	binary.LittleEndian.PutUint32(timestamp, b.timestamp)
 
-	//bits := make([]byte, 4)
 	var bits [4]byte = b.bits
-	//binary.BigEndian.PutUint32(bits, b.bits)
-
-	//nonce := make([]byte, 4)
 	var nonce [4]byte = b.nonce
-	//binary.BigEndian.PutUint32(nonce, b.nonce)
 
 	return bytes.Join([][]byte{version, prevBlock[:], merkleRoot[:], timestamp, bits[:], nonce[:]}, []byte{})
 }
