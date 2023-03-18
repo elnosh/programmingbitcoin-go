@@ -15,6 +15,7 @@ type Block struct {
 	timestamp     uint32
 	bits          [4]byte
 	nonce         [4]byte
+	txHashes      [][]byte
 }
 
 func (b Block) id() []byte {
@@ -114,6 +115,11 @@ func (b Block) bip91() bool {
 
 func (b Block) bip141() bool {
 	return b.version>>1&1 == 1
+}
+
+func (b Block) validateMerkleRoot() bool {
+	merkleRoot := merkleParentRoot(b.txHashes)
+	return bytes.Equal(merkleRoot, b.merkleRoot[:])
 }
 
 func bitsToTarget(bits [4]byte) *big.Int {
