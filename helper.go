@@ -177,6 +177,32 @@ func encodeVarint(num int) ([]byte, error) {
 	return encodedRes, nil
 }
 
+func merkleParent(left, right []byte) []byte {
+	left = append(left, right...)
+	parent := sha256.Sum256(left)
+	return parent[:]
+}
+
+func merkleParentLevel(hashList [][]byte) [][]byte {
+	if len(hashList)%2 == 1 {
+		hashList = append(hashList, hashList[len(hashList)-1])
+	}
+
+	var parentLevel [][]byte
+	for i := 0; i < len(hashList); i += 2 {
+		parentLevel = append(parentLevel, merkleParent(hashList[i], hashList[i+1]))
+	}
+	return parentLevel
+}
+
+func merkleParentRoot(hashList [][]byte) []byte {
+	currentHashList := hashList
+	for len(currentHashList) > 1 {
+		currentHashList = merkleParentLevel(currentHashList)
+	}
+	return currentHashList[0]
+}
+
 func reverse(element []byte) []byte {
 	reversed := make([]byte, len(element))
 	counter := len(element) - 1
